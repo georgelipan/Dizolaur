@@ -59,7 +59,8 @@ export class Game extends Phaser.Scene {
 
     loadAssets() {
         this.load.image('ground', 'assets/tilesV2.png');
-        this.load.image('obstacle', 'assets/obstacleV3.png');
+        this.load.image('obstacle', 'assets/obstacleV4.png');
+        this.load.image('pushObstacle', 'assets/push_obstacle.png');
         this.load.image('platform', 'assets/platform.png');
         this.load.spritesheet('player', 'assets/player.png', { frameWidth: 24, frameHeight: 24 });
         this.load.image('coin', 'assets/coin.png');
@@ -140,12 +141,19 @@ export class Game extends Phaser.Scene {
     }
 
     setupGameObjects() {
-        // Obstacles
+        // Regular obstacles (game over on collision)
         this.obstacles = this.add.group();
         this.obstacleTimer = 0;
         this.minObstacleInterval = 80;
         this.maxObstacleInterval = 150;
         this.nextObstacleTime = Phaser.Math.Between(this.minObstacleInterval, this.maxObstacleInterval);
+        
+        // Push obstacles (push player back on collision)
+        this.pushObstacles = this.add.group();
+        this.pushObstacleTimer = 0;
+        this.minPushObstacleInterval = 200;
+        this.maxPushObstacleInterval = 400;
+        this.nextPushObstacleTime = Phaser.Math.Between(this.minPushObstacleInterval, this.maxPushObstacleInterval);
         
         // Platforms
         this.platforms = this.add.group();
@@ -153,6 +161,9 @@ export class Game extends Phaser.Scene {
         this.minPlatformInterval = 100;
         this.maxPlatformInterval = 200;
         this.nextPlatformTime = Phaser.Math.Between(this.minPlatformInterval, this.maxPlatformInterval);
+        
+        // Push effect state
+        this.isPushingBack = false;
     }
 
     setupSounds() {
@@ -342,6 +353,9 @@ export class Game extends Phaser.Scene {
     applyPhysics() {
         if (this.player.isJumping || this.player.velocityY !== 0) {
             this.player.velocityY += this.gravity;
+            
+            // Store previous Y position before applying velocity
+            const previousY = this.player.y;
             this.player.y += this.player.velocityY;
 
             // Check platform collisions using precise hitboxes
@@ -354,14 +368,17 @@ export class Game extends Phaser.Scene {
                 
                 const playerTop = this.player.y - (this.player.hitboxHeight / 2) + this.player.hitboxOffsetY;
                 const playerBottom = this.player.y + (this.player.hitboxHeight / 2) + this.player.hitboxOffsetY;
+                const previousPlayerBottom = previousY + (this.player.hitboxHeight / 2) + this.player.hitboxOffsetY;
                 
                 // Check if player is horizontally aligned with platform
                 if (this.player.x > platformLeft && this.player.x < platformRight) {
                     
                     // Landing on top of platform (falling down)
+                    // Check if player was above platform in previous frame and is now at or below platform top
                     if (this.player.velocityY > 0 && 
-                        playerBottom >= platformTop &&
-                        playerBottom <= platformTop + platform.collisionPadding) {
+                        previousPlayerBottom <= platformTop &&
+                        playerBottom >= platformTop) {
+                        // Snap player to platform top
                         this.player.y = platformTop - (this.player.hitboxHeight / 2) - this.player.hitboxOffsetY;
                         this.player.velocityY = 0;
                         this.player.isJumping = false;
@@ -416,13 +433,14 @@ export class Game extends Phaser.Scene {
 
     spawnGameObjects() {
         this.spawnObstacles();
+        this.spawnPushObstacles();
         this.spawnPlatforms();
         this.spawnBirds();
         this.spawnSparkles();
     }
 
     spawnObstacles() {
-        // Spawn obstacles
+        // Spawn regular obstacles
         this.obstacleTimer++;
         if (this.obstacleTimer >= this.nextObstacleTime) {
             this.spawnObstacle();
@@ -432,6 +450,21 @@ export class Game extends Phaser.Scene {
             this.nextObstacleTime = Phaser.Math.Between(
                 Math.floor(this.minObstacleInterval * speedFactor),
                 Math.floor(this.maxObstacleInterval * speedFactor)
+            );
+        }
+    }
+
+    spawnPushObstacles() {
+        // Spawn push obstacles
+        this.pushObstacleTimer++;
+        if (this.pushObstacleTimer >= this.nextPushObstacleTime) {
+            this.spawnPushObstacle();
+            this.pushObstacleTimer = 0;
+            // Less frequent than regular obstacles
+            const speedFactor = Math.max(0.7, 1 - (this.score / 1500));
+            this.nextPushObstacleTime = Phaser.Math.Between(
+                Math.floor(this.minPushObstacleInterval * speedFactor),
+                Math.floor(this.maxPushObstacleInterval * speedFactor)
             );
         }
     }
@@ -471,6 +504,7 @@ export class Game extends Phaser.Scene {
 
     updateGameObjects() {
         this.updateObstacles();
+        this.updatePushObstacles();
         this.updatePlatforms();
         this.updateBirds();
     }
@@ -487,6 +521,22 @@ export class Game extends Phaser.Scene {
             // Check collision with player
             if (this.checkCollision(this.player, obstacle)) {
                 this.gameOver();
+            }
+        });
+    }
+
+    updatePushObstacles() {
+        this.pushObstacles.children.entries.forEach(obstacle => {
+            obstacle.x -= this.gameSpeed;
+
+            // Remove obstacles that are off screen
+            if (obstacle.x < -50) {
+                obstacle.destroy();
+            }
+
+            // Check collision with player - push back instead of game over
+            if (!this.isPushingBack && this.checkCollision(this.player, obstacle)) {
+                this.pushPlayerBack();
             }
         });
     }
@@ -526,9 +576,20 @@ export class Game extends Phaser.Scene {
                 this.player.hitboxHeight
             );
             
-            // Draw obstacle hitboxes
+            // Draw obstacle hitboxes (red for deadly)
             this.obstacles.children.entries.forEach(obstacle => {
                 this.debugGraphics.lineStyle(2, 0xff0000, 1);
+                this.debugGraphics.strokeRect(
+                    obstacle.x - (obstacle.hitboxWidth / 2),
+                    obstacle.y - obstacle.hitboxHeight + obstacle.hitboxOffsetY,
+                    obstacle.hitboxWidth,
+                    obstacle.hitboxHeight
+                );
+            });
+            
+            // Draw push obstacle hitboxes (orange for push-back)
+            this.pushObstacles.children.entries.forEach(obstacle => {
+                this.debugGraphics.lineStyle(2, 0xffaa00, 1);
                 this.debugGraphics.strokeRect(
                     obstacle.x - (obstacle.hitboxWidth / 2),
                     obstacle.y - obstacle.hitboxHeight + obstacle.hitboxOffsetY,
@@ -574,6 +635,35 @@ export class Game extends Phaser.Scene {
         this.obstacles.add(obstacle);
     }
 
+    spawnPushObstacle() {
+        // Spawn push obstacle at same Y position as player (on ground level)
+        const obstacle = this.add.sprite(1280 + 50, this.player.groundY, 'pushObstacle');
+        obstacle.setScale(2.2);
+        obstacle.setOrigin(0.5, 0.8);
+        obstacle.setTint(0xffaa00); // Orange tint to differentiate from deadly obstacles
+        
+        // Set precise hitbox for push obstacle
+        obstacle.hitboxWidth = obstacle.width * 2.2 * 0.65;
+        obstacle.hitboxHeight = obstacle.height * 2.2 * 0.75;
+        obstacle.hitboxOffsetY = obstacle.height * 2.2 * 0.1;
+        
+        // Add orange glow effect to show it's different
+        obstacle.preFX.addGlow(0xffaa00, 2, 0, false, 0.2, 8);
+        
+        // Add pulsing animation to make it stand out
+        this.tweens.add({
+            targets: obstacle,
+            scaleX: 2.4,
+            scaleY: 2.4,
+            duration: 500,
+            yoyo: true,
+            repeat: -1,
+            ease: 'Sine.inOut'
+        });
+        
+        this.pushObstacles.add(obstacle);
+    }
+
     spawnPlatform() {
         // Fixed height for all platforms
         const platformY = this.groundY - 100;
@@ -593,9 +683,9 @@ export class Game extends Phaser.Scene {
             platform.setOrigin(0.5, 0.5);
             platform.setTint(0xdddddd); // Slight tint to match ground
             
-            // Set precise hitbox for platform (use full width but exact top surface)
-            platform.hitboxWidth = 48 * platformScale * 0.95; // 95% of width for slight edge tolerance
-            platform.hitboxHeight = 48 * platformScale * 0.3; // Only top 30% for landing
+            // Set hitbox to exact platform dimensions (full image size)
+            platform.hitboxWidth = 48 * platformScale;  // 100% of visual width
+            platform.hitboxHeight = 5 * platformScale; // 100% of visual height
             platform.collisionPadding = 8; // Extra padding for landing detection
             
             // Add subtle glow to platforms
@@ -685,6 +775,96 @@ export class Game extends Phaser.Scene {
             playerBounds.y < obstacleBounds.y + obstacleBounds.height &&
             playerBounds.y + playerBounds.height > obstacleBounds.y
         );
+    }
+
+    pushPlayerBack() {
+        // Prevent multiple push effects at once
+        if (this.isPushingBack) return;
+        
+        this.isPushingBack = true;
+        
+        const pushDistance = 300; // How far the world moves back (increased from 150)
+        const pushDuration = 500; // Duration of push effect
+        
+        // Strong screen shake effect
+        this.cameras.main.shake(300, 0.015);
+        
+        // Push all obstacles backward (move them forward relative to player)
+        this.obstacles.children.entries.forEach(obstacle => {
+            this.tweens.add({
+                targets: obstacle,
+                x: obstacle.x + pushDistance,
+                duration: pushDuration,
+                ease: 'Cubic.out'
+            });
+        });
+        
+        // Push all push obstacles backward
+        this.pushObstacles.children.entries.forEach(obstacle => {
+            this.tweens.add({
+                targets: obstacle,
+                x: obstacle.x + pushDistance,
+                duration: pushDuration,
+                ease: 'Cubic.out'
+            });
+        });
+        
+        // Push all platforms backward
+        this.platforms.children.entries.forEach(platform => {
+            this.tweens.add({
+                targets: platform,
+                x: platform.x + pushDistance,
+                duration: pushDuration,
+                ease: 'Cubic.out'
+            });
+        });
+        
+        // Push all birds backward
+        this.birds.children.entries.forEach(bird => {
+            this.tweens.add({
+                targets: bird,
+                x: bird.x + pushDistance,
+                duration: pushDuration,
+                ease: 'Cubic.out'
+            });
+        });
+        
+        // Move background and ground backward (scroll in reverse)
+        const pushFrames = pushDuration / 16.67; // Approximate frames in push duration
+        const scrollPerFrame = pushDistance / pushFrames;
+        
+        let frameCount = 0;
+        const pushInterval = this.time.addEvent({
+            delay: 16.67, // ~60 FPS
+            repeat: Math.floor(pushFrames),
+            callback: () => {
+                this.background.tilePositionX -= scrollPerFrame * 0.5;
+                this.ground.tilePositionX -= scrollPerFrame;
+                frameCount++;
+            }
+        });
+        
+        // Recovery delay before allowing another push
+        this.time.delayedCall(pushDuration + 500, () => {
+            this.isPushingBack = false;
+        });
+        
+        // Create powerful push effect particles
+        for (let i = 0; i < 20; i++) {
+            const angle = Phaser.Math.Between(-60, 60) + 180; // Push particles forward
+            const particle = this.add.circle(this.player.x + 30, this.player.y, 5, 0xffaa00, 0.9);
+            
+            this.tweens.add({
+                targets: particle,
+                x: particle.x + Math.cos(angle * Math.PI / 180) * Phaser.Math.Between(50, 100),
+                y: particle.y + Math.sin(angle * Math.PI / 180) * Phaser.Math.Between(50, 100),
+                alpha: 0,
+                scale: 0,
+                duration: 600,
+                ease: 'Cubic.out',
+                onComplete: () => particle.destroy()
+            });
+        }
     }
 
     // ============================================================================
