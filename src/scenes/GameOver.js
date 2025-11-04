@@ -51,7 +51,7 @@ export class GameOver extends Phaser.Scene {
         });
 
         // Version number in bottom-left corner
-        this.add.text(10, 710, 'v1.2', {
+        this.add.text(10, 710, 'v1.3', {
             fontSize: '14px',
             fill: '#000000',
             fontFamily: 'Arial',
@@ -224,6 +224,10 @@ export class GameOver extends Phaser.Scene {
             if (this.isMultiplayer && this.multiplayer) {
                 this.rejoinMatchmaking();
             } else {
+                // Stop the Game scene if it's active, then start it fresh
+                if (this.scene.get('Game').scene.isActive()) {
+                    this.scene.stop('Game');
+                }
                 this.scene.start('Game');
             }
         };

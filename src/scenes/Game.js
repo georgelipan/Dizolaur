@@ -23,6 +23,38 @@ export class Game extends Phaser.Scene {
     // SCENE LIFECYCLE METHODS
     // ============================================================================
 
+    init() {
+        // Force cleanup of any existing game objects from previous runs
+        // This runs BEFORE create() and ensures a clean slate
+        if (this.obstacles) {
+            this.obstacles.clear(true, true);
+            this.obstacles = null;
+        }
+        if (this.pushObstacles) {
+            this.pushObstacles.clear(true, true);
+            this.pushObstacles = null;
+        }
+        if (this.platforms) {
+            this.platforms.clear(true, true);
+            this.platforms = null;
+        }
+        if (this.birds) {
+            this.birds.clear(true, true);
+            this.birds = null;
+        }
+        if (this.remotePlayerSprites) {
+            Object.keys(this.remotePlayerSprites).forEach(playerId => {
+                if (this.remotePlayerSprites[playerId].sprite) {
+                    this.remotePlayerSprites[playerId].sprite.destroy();
+                }
+                if (this.remotePlayerSprites[playerId].nameText) {
+                    this.remotePlayerSprites[playerId].nameText.destroy();
+                }
+            });
+            this.remotePlayerSprites = null;
+        }
+    }
+
     preload() {
         this.loadAssets();
         this.loadSounds();
@@ -1156,7 +1188,7 @@ export class Game extends Phaser.Scene {
         }).setOrigin(0, 0.5);
 
         // Version number in bottom-left corner
-        this.add.text(10, 710, 'v1.2', {
+        this.add.text(10, 710, 'v1.3', {
             fontSize: '14px',
             fill: '#000000',
             fontFamily: 'Arial',
