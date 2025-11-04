@@ -81,6 +81,12 @@ export class Game extends Phaser.Scene {
         // Physics constants
         this.jumpPower = -15;
         this.gravity = 0.6;
+        
+        // Variable jump state
+        this.isSpacePressed = false;
+        this.jumpHoldTime = 0;
+        this.minJumpTime = 100; // Minimum hold time for short hop (ms)
+        this.maxJumpTime = 400; // Maximum hold time for full jump (ms)
     }
 
     createBackground() {
@@ -136,7 +142,12 @@ export class Game extends Phaser.Scene {
     }
 
     setupInput() {
-        this.input.keyboard.on('keydown-SPACE', () => this.jump());
+        // Space key for variable jump
+        this.spaceKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE);
+        this.input.keyboard.on('keydown-SPACE', () => this.startJump());
+        this.input.keyboard.on('keyup-SPACE', () => this.releaseJump());
+        
+        // Mouse/touch for full jump (no variable height)
         this.input.on('pointerdown', () => this.jump());
     }
 
@@ -154,6 +165,11 @@ export class Game extends Phaser.Scene {
         this.minPushObstacleInterval = 200;
         this.maxPushObstacleInterval = 400;
         this.nextPushObstacleTime = Phaser.Math.Between(this.minPushObstacleInterval, this.maxPushObstacleInterval);
+        
+        // Obstacle spacing control - prevents overlapping
+        this.minObstacleDistance = 200; // Minimum horizontal distance between any obstacles (configurable)
+        this.lastObstacleX = -1000; // Track X position of last spawned obstacle (start far left)
+        this.lastObstacleType = null; // Track type: 'regular' or 'push'
         
         // Platforms
         this.platforms = this.add.group();
@@ -244,7 +260,29 @@ export class Game extends Phaser.Scene {
     // PLAYER CONTROL METHODS
     // ============================================================================
 
+    startJump() {
+        if (this.isGameOver || this.player.isJumping) return;
+
+        this.player.isJumping = true;
+        this.player.velocityY = this.jumpPower;
+        this.isSpacePressed = true;
+        this.jumpHoldTime = 0;
+        this.jumpSound.play();
+        this.createJumpEffect(this.player.x, this.player.y + 20);
+    }
+
+    releaseJump() {
+        this.isSpacePressed = false;
+        
+        // Cut jump short if released early and still moving upward
+        if (this.player.isJumping && this.player.velocityY < 0) {
+            // Reduce upward velocity to make jump shorter
+            this.player.velocityY *= 0.4;
+        }
+    }
+
     jump() {
+        // Used for mouse/touch input - full jump with no variable height
         if (this.isGameOver || this.player.isJumping) return;
 
         this.player.isJumping = true;
@@ -352,7 +390,22 @@ export class Game extends Phaser.Scene {
 
     applyPhysics() {
         if (this.player.isJumping || this.player.velocityY !== 0) {
-            this.player.velocityY += this.gravity;
+            // Apply variable jump mechanics
+            if (this.isSpacePressed && this.player.velocityY < 0) {
+                // While space is held and moving upward, reduce gravity effect
+                this.jumpHoldTime += 16.67; // Approximate ms per frame (60fps)
+                
+                if (this.jumpHoldTime < this.maxJumpTime) {
+                    // Apply reduced gravity while holding space (allows higher jump)
+                    this.player.velocityY += this.gravity * 0.5;
+                } else {
+                    // Max hold time reached, apply normal gravity
+                    this.player.velocityY += this.gravity;
+                }
+            } else {
+                // Normal gravity when not holding space or moving downward
+                this.player.velocityY += this.gravity;
+            }
             
             // Store previous Y position before applying velocity
             const previousY = this.player.y;
@@ -443,14 +496,20 @@ export class Game extends Phaser.Scene {
         // Spawn regular obstacles
         this.obstacleTimer++;
         if (this.obstacleTimer >= this.nextObstacleTime) {
-            this.spawnObstacle();
-            this.obstacleTimer = 0;
-            // Calculate next spawn time (gets faster as game progresses)
-            const speedFactor = Math.max(0.5, 1 - (this.score / 1000));
-            this.nextObstacleTime = Phaser.Math.Between(
-                Math.floor(this.minObstacleInterval * speedFactor),
-                Math.floor(this.maxObstacleInterval * speedFactor)
-            );
+            // Check if enough distance from last obstacle
+            if (this.canSpawnObstacle()) {
+                this.spawnObstacle();
+                this.obstacleTimer = 0;
+                // Calculate next spawn time (gets faster as game progresses)
+                const speedFactor = Math.max(0.5, 1 - (this.score / 1000));
+                this.nextObstacleTime = Phaser.Math.Between(
+                    Math.floor(this.minObstacleInterval * speedFactor),
+                    Math.floor(this.maxObstacleInterval * speedFactor)
+                );
+            } else {
+                // Not enough distance, wait a few frames before trying again
+                this.obstacleTimer = Math.max(0, this.nextObstacleTime - 10);
+            }
         }
     }
 
@@ -458,14 +517,20 @@ export class Game extends Phaser.Scene {
         // Spawn push obstacles
         this.pushObstacleTimer++;
         if (this.pushObstacleTimer >= this.nextPushObstacleTime) {
-            this.spawnPushObstacle();
-            this.pushObstacleTimer = 0;
-            // Less frequent than regular obstacles
-            const speedFactor = Math.max(0.7, 1 - (this.score / 1500));
-            this.nextPushObstacleTime = Phaser.Math.Between(
-                Math.floor(this.minPushObstacleInterval * speedFactor),
-                Math.floor(this.maxPushObstacleInterval * speedFactor)
-            );
+            // Check if enough distance from last obstacle
+            if (this.canSpawnObstacle()) {
+                this.spawnPushObstacle();
+                this.pushObstacleTimer = 0;
+                // Less frequent than regular obstacles
+                const speedFactor = Math.max(0.7, 1 - (this.score / 1500));
+                this.nextPushObstacleTime = Phaser.Math.Between(
+                    Math.floor(this.minPushObstacleInterval * speedFactor),
+                    Math.floor(this.maxPushObstacleInterval * speedFactor)
+                );
+            } else {
+                // Not enough distance, wait a few frames before trying again
+                this.pushObstacleTimer = Math.max(0, this.nextPushObstacleTime - 10);
+            }
         }
     }
 
@@ -617,9 +682,38 @@ export class Game extends Phaser.Scene {
     // SPAWNING METHODS
     // ============================================================================
 
+    canSpawnObstacle() {
+        // Check if there's enough distance from the rightmost obstacle
+        const spawnX = 1280 + 50; // Default spawn position
+        
+        // Find the rightmost obstacle currently on screen from both types
+        let rightmostX = -1000; // Start with far left position
+        
+        // Check regular obstacles
+        this.obstacles.children.entries.forEach(obstacle => {
+            if (obstacle.x > rightmostX) {
+                rightmostX = obstacle.x;
+            }
+        });
+        
+        // Check push obstacles
+        this.pushObstacles.children.entries.forEach(obstacle => {
+            if (obstacle.x > rightmostX) {
+                rightmostX = obstacle.x;
+            }
+        });
+        
+        // Calculate distance from rightmost obstacle to spawn point
+        const distance = spawnX - rightmostX;
+        
+        // Allow spawn if distance is greater than minimum
+        return distance >= this.minObstacleDistance;
+    }
+
     spawnObstacle() {
         // Spawn obstacle at same Y position as player (on ground level)
-        const obstacle = this.add.sprite(1280 + 50, this.player.groundY, 'obstacle');
+        const spawnX = 1280 + 50;
+        const obstacle = this.add.sprite(spawnX, this.player.groundY, 'obstacle');
         obstacle.setScale(2.2); // Match player scale for consistency
         obstacle.setOrigin(0.5, 0.8);
         obstacle.setTint(0xff6666); // Red tint for danger
@@ -633,11 +727,16 @@ export class Game extends Phaser.Scene {
         obstacle.preFX.addGlow(0xff0000, 2, 0, false, 0.2, 8);
         
         this.obstacles.add(obstacle);
+        
+        // Track position to prevent overlapping
+        this.lastObstacleX = spawnX;
+        this.lastObstacleType = 'regular';
     }
 
     spawnPushObstacle() {
         // Spawn push obstacle at same Y position as player (on ground level)
-        const obstacle = this.add.sprite(1280 + 50, this.player.groundY, 'pushObstacle');
+        const spawnX = 1280 + 50;
+        const obstacle = this.add.sprite(spawnX, this.player.groundY, 'pushObstacle');
         obstacle.setScale(2.2);
         obstacle.setOrigin(0.5, 0.8);
         obstacle.setTint(0xffaa00); // Orange tint to differentiate from deadly obstacles
@@ -662,11 +761,15 @@ export class Game extends Phaser.Scene {
         });
         
         this.pushObstacles.add(obstacle);
+        
+        // Track position to prevent overlapping
+        this.lastObstacleX = spawnX;
+        this.lastObstacleType = 'push';
     }
 
     spawnPlatform() {
         // Fixed height for all platforms
-        const platformY = this.groundY - 100;
+        const platformY = this.groundY - 200;
         
         // Random number of platforms to spawn (1, 2, or 3 merged together)
         const numPlatforms = Phaser.Math.Between(1, 3);
