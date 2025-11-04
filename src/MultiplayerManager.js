@@ -10,7 +10,7 @@ export class MultiplayerManager {
         this.playerName = null;
         this.isHost = false;
         this.remotePlayers = {}; // Other players in the room
-        this.serverUrl = 'http://localhost:3000'; // Change for production
+        this.serverUrl = 'https://YOUR-RENDER-URL.onrender.com'; // Change for production
     }
 
     connect() {
@@ -97,7 +97,7 @@ export class MultiplayerManager {
         // Error
         this.socket.on('error', (data) => {
             console.error('Server error:', data.message);
-            alert(data.message);
+            // Don't alert here - let the calling code handle it
         });
 
         // Room info
@@ -125,6 +125,7 @@ export class MultiplayerManager {
         }
         this.playerName = playerName;
         this.roomCode = roomCode;
+        console.log(`Attempting to join room: ${roomCode} as ${playerName}`);
         this.socket.emit('joinRoom', { roomCode, playerName });
     }
 
