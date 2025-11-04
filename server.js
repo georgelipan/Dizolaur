@@ -304,6 +304,11 @@ io.on('connection', (socket) => {
     });
 });
 
+// Health check endpoint for faster deployment detection
+app.get('/health', (req, res) => {
+    res.status(200).send('OK');
+});
+
 // Basic route for testing
 app.get('/', (req, res) => {
     res.json({
