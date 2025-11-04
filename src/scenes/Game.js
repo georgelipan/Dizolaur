@@ -26,32 +26,45 @@ export class Game extends Phaser.Scene {
     init() {
         // Force cleanup of any existing game objects from previous runs
         // This runs BEFORE create() and ensures a clean slate
-        if (this.obstacles) {
-            this.obstacles.clear(true, true);
+        try {
+            if (this.obstacles && this.obstacles.clear) {
+                this.obstacles.clear(true, true);
+            }
             this.obstacles = null;
-        }
-        if (this.pushObstacles) {
-            this.pushObstacles.clear(true, true);
+            
+            if (this.pushObstacles && this.pushObstacles.clear) {
+                this.pushObstacles.clear(true, true);
+            }
             this.pushObstacles = null;
-        }
-        if (this.platforms) {
-            this.platforms.clear(true, true);
+            
+            if (this.platforms && this.platforms.clear) {
+                this.platforms.clear(true, true);
+            }
             this.platforms = null;
-        }
-        if (this.birds) {
-            this.birds.clear(true, true);
+            
+            if (this.birds && this.birds.clear) {
+                this.birds.clear(true, true);
+            }
             this.birds = null;
-        }
-        if (this.remotePlayerSprites) {
-            Object.keys(this.remotePlayerSprites).forEach(playerId => {
-                if (this.remotePlayerSprites[playerId].sprite) {
-                    this.remotePlayerSprites[playerId].sprite.destroy();
-                }
-                if (this.remotePlayerSprites[playerId].nameText) {
-                    this.remotePlayerSprites[playerId].nameText.destroy();
-                }
-            });
+            
+            if (this.remotePlayerSprites) {
+                Object.keys(this.remotePlayerSprites).forEach(playerId => {
+                    try {
+                        if (this.remotePlayerSprites[playerId].sprite) {
+                            this.remotePlayerSprites[playerId].sprite.destroy();
+                        }
+                        if (this.remotePlayerSprites[playerId].nameText) {
+                            this.remotePlayerSprites[playerId].nameText.destroy();
+                        }
+                    } catch (e) {
+                        console.warn('Error destroying remote player sprite:', e);
+                    }
+                });
+            }
             this.remotePlayerSprites = null;
+            this.remotePlayers = null;
+        } catch (e) {
+            console.warn('Error in init cleanup:', e);
         }
     }
 
@@ -1194,7 +1207,7 @@ export class Game extends Phaser.Scene {
         }).setOrigin(0, 0.5);
 
         // Version number in bottom-left corner
-        this.add.text(10, 710, 'v1.6', {
+        this.add.text(10, 710, 'v1.7', {
             fontSize: '14px',
             fill: '#000000',
             fontFamily: 'Arial',
