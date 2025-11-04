@@ -13,7 +13,9 @@
  * 9. UI Creation Methods
  * 10. Game Over & Celebration Methods
  */
-export class Game extends Phaser.Scene {
+import { BaseScene, DEPTH } from './BaseScene.js';
+
+export class Game extends BaseScene {
 
     constructor() {
         super('Game');
@@ -1207,12 +1209,15 @@ export class Game extends Phaser.Scene {
         }).setOrigin(0, 0.5);
 
         // Version number in bottom-left corner
-        this.add.text(10, 710, 'v1.9', {
+        this.add.text(10, 710, 'v2.0', {
             fontSize: '14px',
             fill: '#000000',
             fontFamily: 'Arial',
             alpha: 0.7
         }).setOrigin(0, 1).setDepth(1000);
+
+        // Mute button
+        this.createMuteButton();
 
         // Speed indicator
         const speedPanelBg = this.add.rectangle(640, 40, 200, 50, 0x2a2a3e, 0.9);

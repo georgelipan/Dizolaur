@@ -1,4 +1,6 @@
-export class GameOver extends Phaser.Scene {
+import { BaseScene, DEPTH } from './BaseScene.js';
+
+export class GameOver extends BaseScene {
 
     constructor() {
         super('GameOver');
@@ -51,12 +53,15 @@ export class GameOver extends Phaser.Scene {
         });
 
         // Version number in bottom-left corner
-        this.add.text(10, 710, 'v1.9', {
+        this.add.text(10, 710, 'v2.0', {
             fontSize: '14px',
             fill: '#000000',
             fontFamily: 'Arial',
             alpha: 0.7
         }).setOrigin(0, 1);
+
+        // Mute button
+        this.createMuteButton();
 
         // Game Over Title with shadow effect
         const titleShadow = this.add.text(643, 163, 'GAME OVER', {

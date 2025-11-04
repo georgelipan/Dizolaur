@@ -1,4 +1,6 @@
-export class Start extends Phaser.Scene {
+import { BaseScene, DEPTH } from './BaseScene.js';
+
+export class Start extends BaseScene {
 
     constructor() {
         super('Start');
@@ -68,12 +70,15 @@ export class Start extends Phaser.Scene {
         }).setOrigin(0.5);
 
         // Version number in bottom-left corner
-        this.add.text(10, 710, 'v1.9', {
+        this.add.text(10, 710, 'v2.0', {
             fontSize: '14px',
             fill: '#000000',
             fontFamily: 'Arial',
             alpha: 0.7
         }).setOrigin(0, 1);
+
+        // Mute button in top-right corner
+        this.createMuteButton();
 
         // Animated title glow
         this.tweens.add({
@@ -305,12 +310,15 @@ export class Start extends Phaser.Scene {
     }
 
     showNameInputAndJoin() {
-        // Dim the main menu
+        // Dim the main menu with blocking overlay
         const dimOverlay = this.add.rectangle(640, 360, 1280, 720, 0x000000, 0.7);
+        dimOverlay.setInteractive(); // Block clicks to elements behind
+        dimOverlay.setDepth(DEPTH.BLOCKING_OVERLAY);
         
         // Multiplayer menu panel
         const menuPanel = this.add.rectangle(640, 360, 600, 400, 0x1a1a2e, 0.95);
         menuPanel.setStrokeStyle(4, 0xffd700);
+        menuPanel.setDepth(DEPTH.MODAL_BACKGROUND);
 
         // Title
         const menuTitle = this.add.text(640, 220, '👥 JOIN MATCHMAKING', {
@@ -318,21 +326,21 @@ export class Start extends Phaser.Scene {
             fill: '#ffd700',
             fontFamily: 'Arial',
             fontStyle: 'bold'
-        }).setOrigin(0.5);
+        }).setOrigin(0.5).setDepth(DEPTH.MODAL_CONTENT);
 
         // Subtitle
         const subtitle = this.add.text(640, 280, 'You will be placed in a lobby with up to 5 players', {
             fontSize: '18px',
             fill: '#aaaaaa',
             fontFamily: 'Arial'
-        }).setOrigin(0.5);
+        }).setOrigin(0.5).setDepth(DEPTH.MODAL_CONTENT);
 
         // Player name input label
         const nameLabel = this.add.text(640, 340, 'Enter Your Name:', {
             fontSize: '22px',
             fill: '#ffffff',
             fontFamily: 'Arial'
-        }).setOrigin(0.5);
+        }).setOrigin(0.5).setDepth(DEPTH.MODAL_CONTENT);
 
         // Create HTML input for player name
         const nameInput = document.createElement('input');
@@ -364,12 +372,13 @@ export class Start extends Phaser.Scene {
         // Join Matchmaking button
         const joinBg = this.add.rectangle(640, 470, 280, 60, 0x00aa00, 0.9);
         joinBg.setStrokeStyle(3, 0xffd700);
+        joinBg.setDepth(DEPTH.MODAL_BUTTONS);
         const joinBtn = this.add.text(640, 470, '🎮 JOIN MATCHMAKING', {
             fontSize: '24px',
             fill: '#ffffff',
             fontFamily: 'Arial',
             fontStyle: 'bold'
-        }).setOrigin(0.5);
+        }).setOrigin(0.5).setDepth(DEPTH.MODAL_BUTTONS);
 
         joinBg.setInteractive({ useHandCursor: true });
         joinBtn.setInteractive({ useHandCursor: true });
@@ -377,12 +386,13 @@ export class Start extends Phaser.Scene {
         // Back button
         const backBg = this.add.rectangle(640, 560, 150, 45, 0xff0000, 0.8);
         backBg.setStrokeStyle(2, 0xffd700);
+        backBg.setDepth(DEPTH.MODAL_BUTTONS);
         const backBtn = this.add.text(640, 560, '← BACK', {
             fontSize: '20px',
             fill: '#ffffff',
             fontFamily: 'Arial',
             fontStyle: 'bold'
-        }).setOrigin(0.5);
+        }).setOrigin(0.5).setDepth(DEPTH.MODAL_BUTTONS);
 
         backBg.setInteractive({ useHandCursor: true });
         backBtn.setInteractive({ useHandCursor: true });
@@ -468,9 +478,15 @@ export class Start extends Phaser.Scene {
         inputs.forEach(input => input.remove());
         loadingText.destroy();
 
+        // Full-screen blocking overlay to prevent clicks on background elements
+        const blockingOverlay = this.add.rectangle(640, 360, 1280, 720, 0x000000, 0.8);
+        blockingOverlay.setInteractive();
+        blockingOverlay.setDepth(DEPTH.BLOCKING_OVERLAY);
+
         // Lobby panel
         const lobbyPanel = this.add.rectangle(640, 360, 600, 500, 0x1a1a2e, 0.95);
         lobbyPanel.setStrokeStyle(4, 0xffd700);
+        lobbyPanel.setDepth(DEPTH.MODAL_BACKGROUND);
 
         // Lobby title
         const lobbyTitle = this.add.text(640, 180, '🎮 MATCHMAKING LOBBY', {
@@ -478,7 +494,7 @@ export class Start extends Phaser.Scene {
             fill: '#ffd700',
             fontFamily: 'Arial',
             fontStyle: 'bold'
-        }).setOrigin(0.5);
+        }).setOrigin(0.5).setDepth(DEPTH.MODAL_CONTENT);
 
         // Players label
         const playersLabel = this.add.text(640, 240, 'Players in Lobby:', {
@@ -486,7 +502,7 @@ export class Start extends Phaser.Scene {
             fill: '#ffffff',
             fontFamily: 'Arial',
             fontStyle: 'bold'
-        }).setOrigin(0.5);
+        }).setOrigin(0.5).setDepth(DEPTH.MODAL_CONTENT);
 
         // Players list
         const playersText = this.add.text(640, 320, '', {
@@ -494,7 +510,7 @@ export class Start extends Phaser.Scene {
             fill: '#00ff88',
             fontFamily: 'Arial',
             align: 'center'
-        }).setOrigin(0.5);
+        }).setOrigin(0.5).setDepth(DEPTH.MODAL_CONTENT);
 
         // Countdown text
         const countdownText = this.add.text(640, 440, '', {
@@ -502,7 +518,7 @@ export class Start extends Phaser.Scene {
             fill: '#ffff00',
             fontFamily: 'Arial',
             fontStyle: 'bold'
-        }).setOrigin(0.5);
+        }).setOrigin(0.5).setDepth(DEPTH.MODAL_CONTENT);
 
         // Status text (waiting for players or countdown running)
         const statusText = this.add.text(640, 500, 'Waiting for more players...\n(Need at least 2 to start)', {
@@ -511,7 +527,7 @@ export class Start extends Phaser.Scene {
             fontFamily: 'Arial',
             align: 'center',
             fontStyle: 'italic'
-        }).setOrigin(0.5);
+        }).setOrigin(0.5).setDepth(DEPTH.MODAL_CONTENT);
 
         // Pulsing animation for status text
         this.tweens.add({
@@ -544,12 +560,13 @@ export class Start extends Phaser.Scene {
         // Start Now button (only show when ≥2 players)
         const startNowBg = this.add.rectangle(640, 500, 200, 50, 0x00aa00, 0.9);
         startNowBg.setStrokeStyle(3, 0x00ff00);
+        startNowBg.setDepth(DEPTH.MODAL_BUTTONS);
         const startNowBtn = this.add.text(640, 500, '▶️ START NOW', {
             fontSize: '24px',
             fill: '#ffffff',
             fontFamily: 'Arial',
             fontStyle: 'bold'
-        }).setOrigin(0.5);
+        }).setOrigin(0.5).setDepth(DEPTH.MODAL_BUTTONS);
 
         startNowBg.setInteractive({ useHandCursor: true });
         startNowBtn.setInteractive({ useHandCursor: true });
@@ -648,12 +665,13 @@ export class Start extends Phaser.Scene {
         // Leave button
         const leaveBg = this.add.rectangle(640, 570, 150, 45, 0xff0000, 0.8);
         leaveBg.setStrokeStyle(2, 0xffd700);
+        leaveBg.setDepth(DEPTH.MODAL_BUTTONS);
         const leaveBtn = this.add.text(640, 570, '🚪 LEAVE', {
             fontSize: '20px',
             fill: '#ffffff',
             fontFamily: 'Arial',
             fontStyle: 'bold'
-        }).setOrigin(0.5);
+        }).setOrigin(0.5).setDepth(DEPTH.MODAL_BUTTONS);
 
         leaveBg.setInteractive({ useHandCursor: true });
         leaveBtn.setInteractive({ useHandCursor: true });
@@ -667,34 +685,6 @@ export class Start extends Phaser.Scene {
         leaveBtn.on('pointerdown', handleLeave);
         leaveBg.on('pointerover', () => leaveBg.setScale(1.05));
         leaveBg.on('pointerout', () => leaveBg.setScale(1));
-    }
-
-    showLobbyAfterRejoin(multiplayer) {
-        // Create minimal background
-        const overlay = this.add.rectangle(640, 360, 1280, 720, 0x000000, 0.3);
-
-        // Show "Joining lobby..." text
-        const joiningText = this.add.text(640, 360, 'Joining new lobby...', {
-            fontSize: '32px',
-            fill: '#ffd700',
-            fontFamily: 'Arial',
-            fontStyle: 'bold'
-        }).setOrigin(0.5);
-
-        // Pulsing animation
-        this.tweens.add({
-            targets: joiningText,
-            alpha: 0.5,
-            duration: 800,
-            yoyo: true,
-            repeat: -1
-        });
-
-        // Wait for lobby to be ready, then show it
-        this.time.delayedCall(500, () => {
-            joiningText.destroy();
-            this.showLobby(multiplayer, [overlay], [], { destroy: () => {} });
-        });
     }
     
 }
