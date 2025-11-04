@@ -50,14 +50,12 @@ export class MultiplayerManager {
         // Lobby joined
         this.socket.on('lobbyJoined', (data) => {
             this.roomCode = data.roomCode;
-            // Only set playerId if it's not already set (first join)
-            if (!this.playerId) {
-                this.playerId = data.playerId;
-            }
+            this.playerId = this.socket.id; // Always use current socket ID
             this.remotePlayers = data.players;
-            // Remove self from remote players using OUR socket ID
+            // Remove self from remote players using current socket ID
             delete this.remotePlayers[this.socket.id];
             console.log(`Joined lobby ${data.roomCode} (${data.playerCount}/${data.maxPlayers})`);
+            console.log(`My socket ID: ${this.socket.id}`);
         });
 
         // Countdown started
