@@ -78,7 +78,7 @@ export class Start extends Phaser.Scene {
         }).setOrigin(0.5);
 
         // Version number in bottom-left corner
-        this.add.text(10, 710, 'v1.3', {
+        this.add.text(10, 710, 'v1.4', {
             fontSize: '14px',
             fill: '#000000',
             fontFamily: 'Arial',
@@ -189,11 +189,6 @@ export class Start extends Phaser.Scene {
         const clickSinglePlayer = () => {
             this.startMusic.stop();
             this.registry.set('isMultiplayer', false);
-            
-            // Stop the Game scene if it's active, then start it fresh
-            if (this.scene.get('Game').scene.isActive()) {
-                this.scene.stop('Game');
-            }
             this.scene.start('Game');
         };
 
@@ -646,11 +641,6 @@ export class Start extends Phaser.Scene {
             this.startMusic.stop();
             this.registry.set('isMultiplayer', true);
             this.registry.set('multiplayerManager', multiplayer);
-            
-            // Stop the Game scene if it's active, then restart it fresh
-            if (this.scene.get('Game').scene.isActive()) {
-                this.scene.stop('Game');
-            }
             this.scene.start('Game');
         });
 
