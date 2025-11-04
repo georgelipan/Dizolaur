@@ -18,61 +18,78 @@ app.use(cors());
 // Store game state
 const rooms = {};
 const players = {};
+const MAX_LOBBY_SIZE = 5;
+const COUNTDOWN_TIME = 60; // seconds
 
 // Utility function to generate room codes
 function generateRoomCode() {
     return Math.random().toString(36).substring(2, 8).toUpperCase();
 }
 
+// Find or create an available lobby
+function findAvailableLobby() {
+    // Find a lobby that's not full and hasn't started
+    for (const [roomCode, room] of Object.entries(rooms)) {
+        const playerCount = Object.keys(room.players).length;
+        if (!room.gameStarted && playerCount < MAX_LOBBY_SIZE) {
+            return roomCode;
+        }
+    }
+    
+    // No available lobby, create a new one
+    const roomCode = generateRoomCode();
+    rooms[roomCode] = {
+        players: {},
+        gameStarted: false,
+        countdown: null,
+        countdownStarted: false,
+        obstaclesSeed: Math.random()
+    };
+    
+    console.log(`Created new lobby: ${roomCode}`);
+    return roomCode;
+}
+
+// Start countdown for a lobby
+function startCountdown(roomCode) {
+    if (!rooms[roomCode]) return;
+    
+    let timeLeft = COUNTDOWN_TIME;
+    console.log(`Starting ${COUNTDOWN_TIME}s countdown in lobby ${roomCode}`);
+    
+    // Notify players countdown started
+    io.to(roomCode).emit('countdownStarted', { seconds: timeLeft });
+    
+    rooms[roomCode].countdown = setInterval(() => {
+        timeLeft--;
+        
+        // Send countdown update
+        io.to(roomCode).emit('countdownUpdate', { seconds: timeLeft });
+        
+        if (timeLeft <= 0) {
+            clearInterval(rooms[roomCode].countdown);
+            rooms[roomCode].countdown = null;
+            
+            // Start the game
+            rooms[roomCode].gameStarted = true;
+            io.to(roomCode).emit('gameStarted', {
+                seed: rooms[roomCode].obstaclesSeed,
+                players: rooms[roomCode].players
+            });
+            
+            console.log(`Game started in lobby ${roomCode}`);
+        }
+    }, 1000);
+}
+
 // Socket.io connection handling
 io.on('connection', (socket) => {
     console.log('Player connected:', socket.id);
 
-    // Create a new room
-    socket.on('createRoom', (playerName) => {
-        const roomCode = generateRoomCode();
-        rooms[roomCode] = {
-            host: socket.id,
-            players: {},
-            gameStarted: false,
-            obstaclesSeed: Math.random() // Seed for synchronized obstacles
-        };
-        
-        // Add host as first player
-        rooms[roomCode].players[socket.id] = {
-            id: socket.id,
-            name: playerName,
-            x: 200,
-            y: 600,
-            score: 0,
-            isAlive: true,
-            isJumping: false
-        };
-        
-        players[socket.id] = { room: roomCode, name: playerName };
-        socket.join(roomCode);
-        
-        socket.emit('roomCreated', {
-            roomCode: roomCode,
-            playerId: socket.id
-        });
-        
-        console.log(`Room ${roomCode} created by ${playerName}`);
-    });
-
-    // Join an existing room
-    socket.on('joinRoom', (data) => {
-        const { roomCode, playerName } = data;
-        
-        if (!rooms[roomCode]) {
-            socket.emit('error', { message: 'Room not found' });
-            return;
-        }
-        
-        if (rooms[roomCode].gameStarted) {
-            socket.emit('error', { message: 'Game already in progress' });
-            return;
-        }
+    // Join matchmaking (automatic lobby)
+    socket.on('joinMatchmaking', (playerName) => {
+        // Find or create an available lobby
+        const roomCode = findAvailableLobby();
         
         // Add player to room
         rooms[roomCode].players[socket.id] = {
@@ -88,30 +105,25 @@ io.on('connection', (socket) => {
         players[socket.id] = { room: roomCode, name: playerName };
         socket.join(roomCode);
         
+        const playerCount = Object.keys(rooms[roomCode].players).length;
+        
         // Notify all players in room
-        io.to(roomCode).emit('playerJoined', {
+        io.to(roomCode).emit('lobbyJoined', {
+            roomCode: roomCode,
             playerId: socket.id,
             playerName: playerName,
-            players: rooms[roomCode].players
+            players: rooms[roomCode].players,
+            playerCount: playerCount,
+            maxPlayers: MAX_LOBBY_SIZE
         });
         
-        console.log(`${playerName} joined room ${roomCode}`);
-    });
-
-    // Start the game
-    socket.on('startGame', (roomCode) => {
-        if (!rooms[roomCode] || rooms[roomCode].host !== socket.id) {
-            socket.emit('error', { message: 'Only host can start the game' });
-            return;
+        console.log(`${playerName} joined lobby ${roomCode} (${playerCount}/${MAX_LOBBY_SIZE})`);
+        
+        // Start countdown if we have at least 2 players and countdown not started
+        if (playerCount >= 2 && !rooms[roomCode].countdownStarted) {
+            rooms[roomCode].countdownStarted = true;
+            startCountdown(roomCode);
         }
-        
-        rooms[roomCode].gameStarted = true;
-        io.to(roomCode).emit('gameStarted', {
-            seed: rooms[roomCode].obstaclesSeed,
-            players: rooms[roomCode].players
-        });
-        
-        console.log(`Game started in room ${roomCode}`);
     });
 
     // Player position update
@@ -161,21 +173,36 @@ io.on('connection', (socket) => {
         });
         
         console.log(`Player ${socket.id} died with score ${data.score}`);
-    });
-
-    // Get room info
-    socket.on('getRoomInfo', (roomCode) => {
-        if (!rooms[roomCode]) {
-            socket.emit('error', { message: 'Room not found' });
-            return;
-        }
         
-        socket.emit('roomInfo', {
-            roomCode: roomCode,
-            players: rooms[roomCode].players,
-            gameStarted: rooms[roomCode].gameStarted,
-            isHost: rooms[roomCode].host === socket.id
-        });
+        // Check if only one player remains alive (winner)
+        const alivePlayers = Object.values(rooms[roomCode].players).filter(p => p.isAlive);
+        if (alivePlayers.length === 1 && rooms[roomCode].gameStarted) {
+            // Game over - we have a winner
+            const winner = alivePlayers[0];
+            console.log(`Game over in ${roomCode}. Winner: ${winner.name}`);
+            
+            io.to(roomCode).emit('gameEnded', {
+                winner: winner,
+                allPlayers: rooms[roomCode].players
+            });
+            
+            // Clean up room after a delay
+            setTimeout(() => {
+                delete rooms[roomCode];
+                console.log(`Room ${roomCode} cleaned up`);
+            }, 10000);
+        } else if (alivePlayers.length === 0 && rooms[roomCode].gameStarted) {
+            // All players died somehow
+            console.log(`All players died in ${roomCode}`);
+            io.to(roomCode).emit('gameEnded', {
+                winner: null,
+                allPlayers: rooms[roomCode].players
+            });
+            
+            setTimeout(() => {
+                delete rooms[roomCode];
+            }, 10000);
+        }
     });
 
     // Handle disconnect
@@ -191,16 +218,30 @@ io.on('connection', (socket) => {
         // Remove player from room
         delete rooms[roomCode].players[socket.id];
         
+        const remainingPlayers = Object.keys(rooms[roomCode].players).length;
+        
         // Notify other players
         io.to(roomCode).emit('playerLeft', {
             playerId: socket.id,
-            playerName: playerInfo.name
+            playerName: playerInfo.name,
+            playerCount: remainingPlayers
         });
         
-        // If room is empty or host left, delete room
-        if (Object.keys(rooms[roomCode].players).length === 0 || rooms[roomCode].host === socket.id) {
+        // If room is empty, delete it
+        if (remainingPlayers === 0) {
+            if (rooms[roomCode].countdown) {
+                clearInterval(rooms[roomCode].countdown);
+            }
             delete rooms[roomCode];
-            console.log(`Room ${roomCode} deleted`);
+            console.log(`Room ${roomCode} deleted (empty)`);
+        } 
+        // If less than 2 players and game not started, cancel countdown
+        else if (remainingPlayers < 2 && !rooms[roomCode].gameStarted && rooms[roomCode].countdown) {
+            clearInterval(rooms[roomCode].countdown);
+            rooms[roomCode].countdown = null;
+            rooms[roomCode].countdownStarted = false;
+            io.to(roomCode).emit('countdownCancelled');
+            console.log(`Countdown cancelled in ${roomCode} (not enough players)`);
         }
         
         delete players[socket.id];

@@ -47,20 +47,32 @@ export class MultiplayerManager {
     }
 
     setupEventListeners() {
-        // Room created
-        this.socket.on('roomCreated', (data) => {
+        // Lobby joined
+        this.socket.on('lobbyJoined', (data) => {
             this.roomCode = data.roomCode;
-            this.playerId = data.playerId;
-            this.isHost = true;
-            console.log('Room created:', this.roomCode);
+            // Only set playerId if it's not already set (first join)
+            if (!this.playerId) {
+                this.playerId = data.playerId;
+            }
+            this.remotePlayers = data.players;
+            // Remove self from remote players using OUR socket ID
+            delete this.remotePlayers[this.socket.id];
+            console.log(`Joined lobby ${data.roomCode} (${data.playerCount}/${data.maxPlayers})`);
         });
 
-        // Player joined
-        this.socket.on('playerJoined', (data) => {
-            console.log('Player joined:', data.playerName);
-            this.remotePlayers = data.players;
-            // Remove self from remote players
-            delete this.remotePlayers[this.playerId];
+        // Countdown started
+        this.socket.on('countdownStarted', (data) => {
+            console.log(`Countdown started: ${data.timeLeft} seconds`);
+        });
+
+        // Countdown update
+        this.socket.on('countdownUpdate', (data) => {
+            console.log(`Countdown: ${data.timeLeft} seconds remaining`);
+        });
+
+        // Countdown cancelled
+        this.socket.on('countdownCancelled', () => {
+            console.log('Countdown cancelled (not enough players)');
         });
 
         // Game started
@@ -94,6 +106,11 @@ export class MultiplayerManager {
             delete this.remotePlayers[data.playerId];
         });
 
+        // Game ended
+        this.socket.on('gameEnded', (data) => {
+            console.log('Game ended. Winner:', data.winner ? data.winner.name : 'No winner');
+        });
+
         // Error
         this.socket.on('error', (data) => {
             console.error('Server error:', data.message);
@@ -109,32 +126,14 @@ export class MultiplayerManager {
         });
     }
 
-    createRoom(playerName) {
+    joinMatchmaking(playerName) {
         if (!this.isConnected) {
             console.error('Not connected to server');
             return;
         }
         this.playerName = playerName;
-        this.socket.emit('createRoom', playerName);
-    }
-
-    joinRoom(roomCode, playerName) {
-        if (!this.isConnected) {
-            console.error('Not connected to server');
-            return;
-        }
-        this.playerName = playerName;
-        this.roomCode = roomCode;
-        console.log(`Attempting to join room: ${roomCode} as ${playerName}`);
-        this.socket.emit('joinRoom', { roomCode, playerName });
-    }
-
-    startGame() {
-        if (!this.isHost) {
-            console.error('Only host can start game');
-            return;
-        }
-        this.socket.emit('startGame', this.roomCode);
+        console.log(`Joining matchmaking as ${playerName}`);
+        this.socket.emit('joinMatchmaking', playerName);
     }
 
     sendPlayerUpdate(x, y, score, isAlive, isJumping) {
