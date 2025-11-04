@@ -126,6 +126,38 @@ io.on('connection', (socket) => {
         }
     });
 
+    // Manual start game (skip countdown)
+    socket.on('startGameNow', () => {
+        const playerInfo = players[socket.id];
+        if (!playerInfo) return;
+        
+        const roomCode = playerInfo.room;
+        if (!rooms[roomCode]) return;
+        
+        const playerCount = Object.keys(rooms[roomCode].players).length;
+        
+        // Need at least 2 players to start
+        if (playerCount < 2) {
+            socket.emit('error', { message: 'Need at least 2 players to start' });
+            return;
+        }
+        
+        // Cancel existing countdown if any
+        if (rooms[roomCode].countdown) {
+            clearInterval(rooms[roomCode].countdown);
+            rooms[roomCode].countdown = null;
+        }
+        
+        // Start the game immediately
+        rooms[roomCode].gameStarted = true;
+        io.to(roomCode).emit('gameStarted', {
+            seed: rooms[roomCode].obstaclesSeed,
+            players: rooms[roomCode].players
+        });
+        
+        console.log(`Game started manually in lobby ${roomCode}`);
+    });
+
     // Player position update
     socket.on('playerUpdate', (data) => {
         const playerInfo = players[socket.id];
@@ -186,11 +218,13 @@ io.on('connection', (socket) => {
                 allPlayers: rooms[roomCode].players
             });
             
-            // Clean up room after a delay
+            // Mark room for cleanup and delete immediately to prevent reuse
             setTimeout(() => {
-                delete rooms[roomCode];
-                console.log(`Room ${roomCode} cleaned up`);
-            }, 10000);
+                if (rooms[roomCode]) {
+                    delete rooms[roomCode];
+                    console.log(`Room ${roomCode} cleaned up`);
+                }
+            }, 5000); // Reduced to 5 seconds
         } else if (alivePlayers.length === 0 && rooms[roomCode].gameStarted) {
             // All players died somehow
             console.log(`All players died in ${roomCode}`);
@@ -200,8 +234,10 @@ io.on('connection', (socket) => {
             });
             
             setTimeout(() => {
-                delete rooms[roomCode];
-            }, 10000);
+                if (rooms[roomCode]) {
+                    delete rooms[roomCode];
+                }
+            }, 5000);
         }
     });
 
