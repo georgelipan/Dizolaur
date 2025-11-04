@@ -503,19 +503,36 @@ export class Start extends Phaser.Scene {
             const multiplayer = new MultiplayerManager();
             
             await multiplayer.connect();
-            multiplayer.joinRoom(roomCode, playerName);
-
-            // Wait for join confirmation
-            await new Promise((resolve, reject) => {
-                multiplayer.socket.once('playerJoined', resolve);
-                multiplayer.socket.once('error', reject);
+            
+            // Set up listeners BEFORE joining
+            const joinPromise = new Promise((resolve, reject) => {
+                const timeout = setTimeout(() => {
+                    reject(new Error('Join timeout'));
+                }, 5000);
+                
+                multiplayer.socket.once('playerJoined', (data) => {
+                    clearTimeout(timeout);
+                    resolve(data);
+                });
+                
+                multiplayer.socket.once('error', (data) => {
+                    clearTimeout(timeout);
+                    reject(new Error(data.message || 'Could not join room'));
+                });
             });
+            
+            // Now join the room
+            multiplayer.joinRoom(roomCode, playerName);
+            
+            // Wait for confirmation
+            await joinPromise;
 
             // Show lobby
             this.showLobby(multiplayer, menuElements, inputs, loadingText, false);
         } catch (error) {
             console.error('Join error:', error);
-            loadingText.setText('❌ Could not join room!\nCheck room code.');
+            const errorMsg = error.message || 'Could not join room';
+            loadingText.setText(`❌ ${errorMsg}\nCheck room code and try again.`);
             loadingText.setColor('#ff0000');
         }
     }
