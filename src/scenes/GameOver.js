@@ -50,6 +50,14 @@ export class GameOver extends Phaser.Scene {
             ease: 'Sine.inOut'
         });
 
+        // Version number in bottom-left corner
+        this.add.text(10, 710, 'v1.0', {
+            fontSize: '14px',
+            fill: '#888888',
+            fontFamily: 'Arial',
+            alpha: 0.7
+        }).setOrigin(0, 1);
+
         // Game Over Title with shadow effect
         const titleShadow = this.add.text(643, 163, 'GAME OVER', {
             fontSize: '80px',

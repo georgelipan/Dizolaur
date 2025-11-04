@@ -77,6 +77,14 @@ export class Start extends Phaser.Scene {
             strokeThickness: 2
         }).setOrigin(0.5);
 
+        // Version number in bottom-left corner
+        this.add.text(10, 710, 'v1.0', {
+            fontSize: '14px',
+            fill: '#888888',
+            fontFamily: 'Arial',
+            alpha: 0.7
+        }).setOrigin(0, 1);
+
         // Animated title glow
         this.tweens.add({
             targets: title,

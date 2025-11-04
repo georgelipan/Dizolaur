@@ -1155,6 +1155,14 @@ export class Game extends Phaser.Scene {
             strokeThickness: 2
         }).setOrigin(0, 0.5);
 
+        // Version number in bottom-left corner
+        this.add.text(10, 710, 'v1.0', {
+            fontSize: '14px',
+            fill: '#888888',
+            fontFamily: 'Arial',
+            alpha: 0.7
+        }).setOrigin(0, 1).setDepth(1000);
+
         // Speed indicator
         const speedPanelBg = this.add.rectangle(640, 40, 200, 50, 0x2a2a3e, 0.9);
         speedPanelBg.setStrokeStyle(2, 0x4a4a6e);
