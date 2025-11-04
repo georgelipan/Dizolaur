@@ -30,6 +30,7 @@ export class Game extends Phaser.Scene {
 
     create() {
         this.initializeGameState();
+        this.initializeMultiplayer();
         this.createBackground();
         this.createGround();
         this.createPlayer();
@@ -50,6 +51,7 @@ export class Game extends Phaser.Scene {
         this.updateScore();
         this.spawnGameObjects();
         this.updateGameObjects();
+        this.updateMultiplayer();
         this.renderDebugHitboxes();
     }
 
@@ -87,6 +89,24 @@ export class Game extends Phaser.Scene {
         this.jumpHoldTime = 0;
         this.minJumpTime = 100; // Minimum hold time for short hop (ms)
         this.maxJumpTime = 400; // Maximum hold time for full jump (ms)
+    }
+
+    initializeMultiplayer() {
+        // Check if this is a multiplayer game
+        this.isMultiplayer = this.registry.get('isMultiplayer') || false;
+        this.multiplayer = this.registry.get('multiplayerManager') || null;
+        
+        // Remote players container
+        this.remotePlayers = {};
+        this.remotePlayerSprites = {};
+        
+        // Throttle multiplayer updates (don't send every frame)
+        this.multiplayerUpdateCounter = 0;
+        this.multiplayerUpdateInterval = 3; // Send update every 3 frames
+        
+        if (this.isMultiplayer && this.multiplayer) {
+            console.log('Multiplayer mode enabled');
+        }
     }
 
     createBackground() {
@@ -628,6 +648,85 @@ export class Game extends Phaser.Scene {
         });
     }
 
+    updateMultiplayer() {
+        if (!this.isMultiplayer || !this.multiplayer) return;
+
+        // Throttle updates - don't send every frame
+        this.multiplayerUpdateCounter++;
+        if (this.multiplayerUpdateCounter >= this.multiplayerUpdateInterval) {
+            this.multiplayerUpdateCounter = 0;
+            
+            // Send player position to server
+            this.multiplayer.sendPlayerUpdate(
+                this.player.x,
+                this.player.y,
+                Math.floor(this.score),
+                !this.isGameOver,
+                this.player.isJumping
+            );
+        }
+
+        // Update remote player sprites
+        const remotePlayers = this.multiplayer.getRemotePlayers();
+        
+        // Create or update sprites for each remote player
+        Object.keys(remotePlayers).forEach(playerId => {
+            const remoteData = remotePlayers[playerId];
+            
+            if (!this.remotePlayerSprites[playerId]) {
+                // Create new sprite for this player
+                const sprite = this.add.sprite(remoteData.x, remoteData.y, 'player');
+                sprite.setScale(2.2);
+                sprite.setAlpha(0.6); // Ghost effect
+                sprite.setTint(0x00aaff); // Blue tint for remote players
+                sprite.play('run');
+                
+                // Add name label
+                const nameText = this.add.text(remoteData.x, remoteData.y - 50, remoteData.name, {
+                    fontSize: '16px',
+                    fill: '#00aaff',
+                    fontFamily: 'Arial',
+                    fontStyle: 'bold',
+                    stroke: '#000000',
+                    strokeThickness: 2
+                }).setOrigin(0.5);
+                
+                this.remotePlayerSprites[playerId] = {
+                    sprite: sprite,
+                    nameText: nameText,
+                    targetX: remoteData.x,
+                    targetY: remoteData.y
+                };
+            }
+            
+            // Update sprite position with smooth interpolation
+            const remotePlayer = this.remotePlayerSprites[playerId];
+            remotePlayer.targetX = remoteData.x;
+            remotePlayer.targetY = remoteData.y;
+            
+            // Smooth movement (interpolation)
+            remotePlayer.sprite.x += (remotePlayer.targetX - remotePlayer.sprite.x) * 0.3;
+            remotePlayer.sprite.y += (remotePlayer.targetY - remotePlayer.sprite.y) * 0.3;
+            remotePlayer.nameText.x = remotePlayer.sprite.x;
+            remotePlayer.nameText.y = remotePlayer.sprite.y - 50;
+            
+            // Update animation based on state
+            if (!remoteData.isAlive) {
+                remotePlayer.sprite.setAlpha(0.3);
+                remotePlayer.nameText.setAlpha(0.3);
+            }
+        });
+        
+        // Remove sprites for players who left
+        Object.keys(this.remotePlayerSprites).forEach(playerId => {
+            if (!remotePlayers[playerId]) {
+                this.remotePlayerSprites[playerId].sprite.destroy();
+                this.remotePlayerSprites[playerId].nameText.destroy();
+                delete this.remotePlayerSprites[playerId];
+            }
+        });
+    }
+
     renderDebugHitboxes() {
         if (this.debugHitboxes) {
             this.debugGraphics.clear();
@@ -1062,6 +1161,11 @@ export class Game extends Phaser.Scene {
         this.isGameOver = true;
         this.player.anims.stop();
         
+        // Notify server if multiplayer
+        if (this.isMultiplayer && this.multiplayer) {
+            this.multiplayer.sendPlayerDied(Math.floor(this.score));
+        }
+        
         // Screen shake effect on collision
         this.cameras.main.shake(300, 0.01);
         
@@ -1073,7 +1177,12 @@ export class Game extends Phaser.Scene {
         
         // Slight delay before transition
         this.time.delayedCall(400, () => {
-            this.scene.start('GameOver', { score: this.score });
+            // Pass multiplayer info to GameOver scene
+            this.scene.start('GameOver', { 
+                score: this.score,
+                isMultiplayer: this.isMultiplayer,
+                multiplayer: this.multiplayer
+            });
         });
     }
     

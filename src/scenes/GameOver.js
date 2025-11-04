@@ -17,6 +17,10 @@ export class GameOver extends Phaser.Scene {
         this.finalScore = data.score || 0;
         this.currentDisplayScore = 0;
         this.scoreAnimationComplete = false;
+        
+        // Multiplayer data
+        this.isMultiplayer = data.isMultiplayer || false;
+        this.multiplayer = data.multiplayer || null;
     }
 
     create() {
@@ -133,42 +137,51 @@ export class GameOver extends Phaser.Scene {
     }
 
     showHighScoreAndButtons() {
-        // High score (stored in localStorage)
-        const highScore = this.getHighScore();
+        let yOffset = 420;
         
-        // High score display box
-        const highScoreBox = this.add.rectangle(640, 420, 350, 50, 0x2a2a3e, 0.6);
-        highScoreBox.setStrokeStyle(2, 0x6a6a8e);
-        
-        if (this.finalScore > highScore) {
-            this.saveHighScore(this.finalScore);
-            const newHighScoreText = this.add.text(640, 420, '🏆 NEW HIGH SCORE! 🏆', {
-                fontSize: '26px',
-                fill: '#ffd700',
-                fontFamily: 'Arial',
-                fontStyle: 'bold'
-            }).setOrigin(0.5);
-            
-            // Celebratory animation
-            this.tweens.add({
-                targets: newHighScoreText,
-                scale: 1.15,
-                duration: 500,
-                yoyo: true,
-                repeat: -1,
-                ease: 'Sine.inOut'
-            });
+        // Show multiplayer results if in multiplayer mode
+        if (this.isMultiplayer && this.multiplayer) {
+            this.showMultiplayerResults();
+            yOffset = 550; // Move buttons down for multiplayer
         } else {
-            this.add.text(640, 420, `🏆 Best: ${Math.floor(highScore)}`, {
-                fontSize: '24px',
-                fill: '#aaaaaa',
-                fontFamily: 'Arial',
-                fontStyle: 'bold'
-            }).setOrigin(0.5);
+            // High score (stored in localStorage)
+            const highScore = this.getHighScore();
+            
+            // High score display box
+            const highScoreBox = this.add.rectangle(640, 420, 350, 50, 0x2a2a3e, 0.6);
+            highScoreBox.setStrokeStyle(2, 0x6a6a8e);
+            
+            if (this.finalScore > highScore) {
+                this.saveHighScore(this.finalScore);
+                const newHighScoreText = this.add.text(640, 420, '🏆 NEW HIGH SCORE! 🏆', {
+                    fontSize: '26px',
+                    fill: '#ffd700',
+                    fontFamily: 'Arial',
+                    fontStyle: 'bold'
+                }).setOrigin(0.5);
+                
+                // Celebratory animation
+                this.tweens.add({
+                    targets: newHighScoreText,
+                    scale: 1.15,
+                    duration: 500,
+                    yoyo: true,
+                    repeat: -1,
+                    ease: 'Sine.inOut'
+                });
+            } else {
+                this.add.text(640, 420, `🏆 Best: ${Math.floor(highScore)}`, {
+                    fontSize: '24px',
+                    fill: '#aaaaaa',
+                    fontFamily: 'Arial',
+                    fontStyle: 'bold'
+                }).setOrigin(0.5);
+            }
+            yOffset = 510;
         }
 
         // Button container
-        const buttonY = 510;
+        const buttonY = yOffset;
         
         // Restart button with background
         const restartBg = this.add.rectangle(640, buttonY, 280, 60, 0x00aa00, 0.9);
@@ -256,6 +269,71 @@ export class GameOver extends Phaser.Scene {
         // Keyboard shortcuts
         this.input.keyboard.on('keydown-SPACE', restartClick);
         this.input.keyboard.on('keydown-ESC', menuClick);
+    }
+
+    showMultiplayerResults() {
+        // Show all players' scores in multiplayer
+        const resultsBox = this.add.rectangle(640, 450, 500, 150, 0x2a2a3e, 0.8);
+        resultsBox.setStrokeStyle(3, 0x4a4a6e);
+        
+        const resultsTitle = this.add.text(640, 395, '📊 FINAL RANKINGS', {
+            fontSize: '24px',
+            fill: '#ffd700',
+            fontFamily: 'Arial',
+            fontStyle: 'bold'
+        }).setOrigin(0.5);
+        
+        // Get all players and sort by score
+        const allPlayers = [];
+        
+        // Add current player
+        allPlayers.push({
+            name: this.multiplayer.playerName,
+            score: Math.floor(this.finalScore),
+            isMe: true
+        });
+        
+        // Add remote players
+        Object.values(this.multiplayer.remotePlayers).forEach(player => {
+            allPlayers.push({
+                name: player.name,
+                score: player.score,
+                isMe: false
+            });
+        });
+        
+        // Sort by score (highest first)
+        allPlayers.sort((a, b) => b.score - a.score);
+        
+        // Display rankings
+        let yPos = 420;
+        allPlayers.forEach((player, index) => {
+            const rank = index + 1;
+            const medal = rank === 1 ? '🥇' : rank === 2 ? '🥈' : rank === 3 ? '🥉' : `${rank}.`;
+            const color = player.isMe ? '#00ff88' : '#ffffff';
+            const fontSize = player.isMe ? '22px' : '20px';
+            
+            const rankText = this.add.text(450, yPos, `${medal} ${player.name}`, {
+                fontSize: fontSize,
+                fill: color,
+                fontFamily: 'Arial',
+                fontStyle: player.isMe ? 'bold' : 'normal'
+            });
+            
+            const scoreText = this.add.text(780, yPos, player.score.toString(), {
+                fontSize: fontSize,
+                fill: color,
+                fontFamily: 'Arial',
+                fontStyle: player.isMe ? 'bold' : 'normal'
+            }).setOrigin(1, 0);
+            
+            if (player.isMe) {
+                // Highlight current player
+                const highlight = this.add.rectangle(640, yPos + 10, 320, 28, 0xffd700, 0.2);
+            }
+            
+            yPos += 35;
+        });
     }
 
     createFallingCoins() {
