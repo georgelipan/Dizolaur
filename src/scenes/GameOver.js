@@ -51,7 +51,7 @@ export class GameOver extends Phaser.Scene {
         });
 
         // Version number in bottom-left corner
-        this.add.text(10, 710, 'v1.7', {
+        this.add.text(10, 710, 'v1.8', {
             fontSize: '14px',
             fill: '#000000',
             fontFamily: 'Arial',
@@ -473,11 +473,13 @@ export class GameOver extends Phaser.Scene {
             // Wait for lobby assignment
             await joinPromise;
 
-            // Go to Start scene which will show the lobby
-            this.registry.set('isMultiplayer', true);
-            this.registry.set('multiplayerManager', this.multiplayer);
-            this.registry.set('showLobbyDirectly', true); // Flag to skip menu
-            this.scene.start('Start');
+            // Store player name in sessionStorage for after reload
+            sessionStorage.setItem('playerName', this.multiplayer.playerName);
+            sessionStorage.setItem('rejoiningMatchmaking', 'true');
+            
+            // Force a hard reload to clear all cached game state
+            // This is the only reliable way to clear Phaser's internal cache
+            window.location.reload();
             
         } catch (error) {
             console.error('Rejoin matchmaking error:', error);
