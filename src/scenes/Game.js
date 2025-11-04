@@ -1156,7 +1156,7 @@ export class Game extends Phaser.Scene {
         }).setOrigin(0, 0.5);
 
         // Version number in bottom-left corner
-        this.add.text(10, 710, 'v1.0', {
+        this.add.text(10, 710, 'v1.1', {
             fontSize: '14px',
             fill: '#888888',
             fontFamily: 'Arial',
@@ -1522,5 +1522,26 @@ export class Game extends Phaser.Scene {
                 }
             }
         });
+    }
+
+    shutdown() {
+        // Clean up multiplayer event listeners when scene is destroyed
+        if (this.isMultiplayer && this.multiplayer && this.multiplayer.socket) {
+            this.multiplayer.socket.off('countdownUpdate');
+            this.multiplayer.socket.off('gameStarted');
+            this.multiplayer.socket.off('gameEnded');
+        }
+        
+        // Destroy all remote player sprites
+        Object.keys(this.remotePlayerSprites).forEach(playerId => {
+            if (this.remotePlayerSprites[playerId].sprite) {
+                this.remotePlayerSprites[playerId].sprite.destroy();
+            }
+            if (this.remotePlayerSprites[playerId].nameText) {
+                this.remotePlayerSprites[playerId].nameText.destroy();
+            }
+        });
+        this.remotePlayerSprites = {};
+        this.remotePlayers = {};
     }
 }

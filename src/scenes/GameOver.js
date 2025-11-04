@@ -51,7 +51,7 @@ export class GameOver extends Phaser.Scene {
         });
 
         // Version number in bottom-left corner
-        this.add.text(10, 710, 'v1.0', {
+        this.add.text(10, 710, 'v1.1', {
             fontSize: '14px',
             fill: '#888888',
             fontFamily: 'Arial',
@@ -435,10 +435,17 @@ export class GameOver extends Phaser.Scene {
         });
 
         try {
-            // Disconnect from current room
+            // Properly disconnect from current session
             if (this.multiplayer.socket) {
                 this.multiplayer.socket.removeAllListeners();
+                this.multiplayer.socket.disconnect();
+                this.multiplayer.socket = null;
             }
+            
+            // Clear remote players data from previous game
+            this.multiplayer.remotePlayers = {};
+            this.multiplayer.roomCode = null;
+            this.multiplayer.isConnected = false;
 
             // Reconnect and rejoin matchmaking
             await this.multiplayer.connect();
