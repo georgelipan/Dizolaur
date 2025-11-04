@@ -78,9 +78,9 @@ export class Start extends Phaser.Scene {
         }).setOrigin(0.5);
 
         // Version number in bottom-left corner
-        this.add.text(10, 710, 'v1.1', {
+        this.add.text(10, 710, 'v1.2', {
             fontSize: '14px',
-            fill: '#888888',
+            fill: '#000000',
             fontFamily: 'Arial',
             alpha: 0.7
         }).setOrigin(0, 1);

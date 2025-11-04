@@ -1156,9 +1156,9 @@ export class Game extends Phaser.Scene {
         }).setOrigin(0, 0.5);
 
         // Version number in bottom-left corner
-        this.add.text(10, 710, 'v1.1', {
+        this.add.text(10, 710, 'v1.2', {
             fontSize: '14px',
-            fill: '#888888',
+            fill: '#000000',
             fontFamily: 'Arial',
             alpha: 0.7
         }).setOrigin(0, 1).setDepth(1000);
@@ -1525,6 +1525,11 @@ export class Game extends Phaser.Scene {
     }
 
     shutdown() {
+        // Stop all sounds
+        if (this.bgMusic) {
+            this.bgMusic.stop();
+        }
+        
         // Clean up multiplayer event listeners when scene is destroyed
         if (this.isMultiplayer && this.multiplayer && this.multiplayer.socket) {
             this.multiplayer.socket.off('countdownUpdate');
@@ -1533,15 +1538,41 @@ export class Game extends Phaser.Scene {
         }
         
         // Destroy all remote player sprites
-        Object.keys(this.remotePlayerSprites).forEach(playerId => {
-            if (this.remotePlayerSprites[playerId].sprite) {
-                this.remotePlayerSprites[playerId].sprite.destroy();
-            }
-            if (this.remotePlayerSprites[playerId].nameText) {
-                this.remotePlayerSprites[playerId].nameText.destroy();
-            }
-        });
-        this.remotePlayerSprites = {};
+        if (this.remotePlayerSprites) {
+            Object.keys(this.remotePlayerSprites).forEach(playerId => {
+                if (this.remotePlayerSprites[playerId].sprite) {
+                    this.remotePlayerSprites[playerId].sprite.destroy();
+                }
+                if (this.remotePlayerSprites[playerId].nameText) {
+                    this.remotePlayerSprites[playerId].nameText.destroy();
+                }
+            });
+            this.remotePlayerSprites = {};
+        }
         this.remotePlayers = {};
+        
+        // Destroy all game object groups and their children
+        if (this.obstacles) {
+            this.obstacles.clear(true, true); // Remove and destroy all
+        }
+        if (this.pushObstacles) {
+            this.pushObstacles.clear(true, true);
+        }
+        if (this.platforms) {
+            this.platforms.clear(true, true);
+        }
+        if (this.birds) {
+            this.birds.clear(true, true);
+        }
+        
+        // Clear any active tweens
+        if (this.tweens) {
+            this.tweens.killAll();
+        }
+        
+        // Clear any active timers
+        if (this.time) {
+            this.time.removeAllEvents();
+        }
     }
 }
