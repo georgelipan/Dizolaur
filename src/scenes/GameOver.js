@@ -211,7 +211,13 @@ export class GameOver extends Phaser.Scene {
         
         const restartClick = () => {
             this.scoreSound.stop();
-            this.scene.start('Game');
+            
+            // If multiplayer, rejoin matchmaking instead of starting new game
+            if (this.isMultiplayer && this.multiplayer) {
+                this.rejoinMatchmaking();
+            } else {
+                this.scene.start('Game');
+            }
         };
 
         restartBg.on('pointerover', restartHoverIn);
@@ -399,5 +405,74 @@ export class GameOver extends Phaser.Scene {
 
     saveHighScore(score) {
         localStorage.setItem('dizolaur_highscore', score.toString());
+    }
+
+    async rejoinMatchmaking() {
+        // Show loading overlay
+        const overlay = this.add.rectangle(640, 360, 1280, 720, 0x000000, 0.7);
+        const loadingText = this.add.text(640, 360, 'Finding new match...', {
+            fontSize: '32px',
+            fill: '#ffd700',
+            fontFamily: 'Arial',
+            fontStyle: 'bold'
+        }).setOrigin(0.5);
+
+        // Pulsing animation
+        this.tweens.add({
+            targets: loadingText,
+            alpha: 0.5,
+            duration: 800,
+            yoyo: true,
+            repeat: -1
+        });
+
+        try {
+            // Disconnect from current room
+            if (this.multiplayer.socket) {
+                this.multiplayer.socket.removeAllListeners();
+            }
+
+            // Reconnect and rejoin matchmaking
+            await this.multiplayer.connect();
+            
+            // Set up listeners for new lobby
+            const joinPromise = new Promise((resolve, reject) => {
+                const timeout = setTimeout(() => {
+                    reject(new Error('Matchmaking timeout'));
+                }, 10000);
+                
+                this.multiplayer.socket.once('lobbyJoined', (data) => {
+                    clearTimeout(timeout);
+                    resolve(data);
+                });
+                
+                this.multiplayer.socket.once('error', (data) => {
+                    clearTimeout(timeout);
+                    reject(new Error(data.message || 'Could not join lobby'));
+                });
+            });
+            
+            // Join matchmaking with same player name
+            this.multiplayer.joinMatchmaking(this.multiplayer.playerName);
+            
+            // Wait for lobby assignment
+            await joinPromise;
+
+            // Go to Start scene which will show the lobby
+            this.registry.set('isMultiplayer', true);
+            this.registry.set('multiplayerManager', this.multiplayer);
+            this.registry.set('showLobbyDirectly', true); // Flag to skip menu
+            this.scene.start('Start');
+            
+        } catch (error) {
+            console.error('Rejoin matchmaking error:', error);
+            loadingText.setText('❌ Could not rejoin matchmaking\nReturning to menu...');
+            loadingText.setColor('#ff0000');
+            
+            // Return to menu after error
+            this.time.delayedCall(2000, () => {
+                this.scene.start('Start');
+            });
+        }
     }
 }

@@ -40,6 +40,11 @@ export class Game extends Phaser.Scene {
         this.setupSounds();
         this.setupDebugMode();
         this.setupVisualEnhancements();
+        
+        // Show start countdown for multiplayer games
+        if (this.isMultiplayer) {
+            this.showStartCountdown();
+        }
     }
 
     update() {
@@ -104,8 +109,39 @@ export class Game extends Phaser.Scene {
         this.multiplayerUpdateCounter = 0;
         this.multiplayerUpdateInterval = 3; // Send update every 3 frames
         
+        // Countdown display element
+        this.countdownDisplay = null;
+        
         if (this.isMultiplayer && this.multiplayer) {
             console.log('Multiplayer mode enabled');
+            
+            // Listen for countdown updates from server
+            this.multiplayer.socket.on('countdownUpdate', (data) => {
+                this.showCountdownOnScreen(data.seconds);
+            });
+            
+            // Listen for game start (hide countdown)
+            this.multiplayer.socket.on('gameStarted', () => {
+                if (this.countdownDisplay) {
+                    this.countdownDisplay.destroy();
+                    this.countdownDisplay = null;
+                }
+            });
+            
+            // Listen for game ended event (winner announcement)
+            this.multiplayer.socket.on('gameEnded', (data) => {
+                console.log('Game ended!', data);
+                
+                // Show winner announcement
+                if (data.winner) {
+                    this.showWinnerAnnouncement(data.winner);
+                }
+                
+                // Transition to GameOver after 3 seconds
+                this.time.delayedCall(3000, () => {
+                    this.gameOver();
+                });
+            });
         }
     }
 
@@ -1278,5 +1314,205 @@ export class Game extends Phaser.Scene {
                 onComplete: () => particle.destroy()
             });
         }
+    }
+
+    showWinnerAnnouncement(winner) {
+        // Create semi-transparent overlay
+        const overlay = this.add.rectangle(640, 360, 1280, 720, 0x000000, 0.7);
+        overlay.setDepth(1000);
+
+        // Announcement panel
+        const panel = this.add.rectangle(640, 360, 700, 350, 0x1a1a2e, 0.95);
+        panel.setStrokeStyle(5, 0xffd700);
+        panel.setDepth(1001);
+
+        // Trophy icon
+        const trophy = this.add.text(640, 250, '🏆', {
+            fontSize: '80px'
+        }).setOrigin(0.5).setDepth(1002).setAlpha(0);
+
+        // Winner announcement
+        const winnerText = this.add.text(640, 360, `${winner.name} WINS!`, {
+            fontSize: '48px',
+            fill: '#ffd700',
+            fontFamily: 'Arial',
+            fontStyle: 'bold',
+            stroke: '#000000',
+            strokeThickness: 6
+        }).setOrigin(0.5).setDepth(1002).setAlpha(0);
+
+        // Score display
+        const scoreText = this.add.text(640, 430, `Final Score: ${winner.score}`, {
+            fontSize: '28px',
+            fill: '#ffffff',
+            fontFamily: 'Arial'
+        }).setOrigin(0.5).setDepth(1002).setAlpha(0);
+
+        // Animate trophy entrance
+        this.tweens.add({
+            targets: trophy,
+            alpha: 1,
+            scale: 1.5,
+            duration: 500,
+            ease: 'Back.out'
+        });
+
+        // Animate winner text
+        this.tweens.add({
+            targets: winnerText,
+            alpha: 1,
+            y: 350,
+            duration: 600,
+            delay: 200,
+            ease: 'Back.out'
+        });
+
+        // Animate score text
+        this.tweens.add({
+            targets: scoreText,
+            alpha: 1,
+            duration: 400,
+            delay: 400
+        });
+
+        // Confetti effect
+        for (let i = 0; i < 30; i++) {
+            const confetti = this.add.circle(
+                Phaser.Math.Between(300, 980),
+                -20,
+                Phaser.Math.Between(3, 6),
+                Phaser.Math.Between(0xff0000, 0xffff00),
+                1
+            );
+            confetti.setDepth(999);
+
+            this.tweens.add({
+                targets: confetti,
+                y: 800,
+                x: confetti.x + Phaser.Math.Between(-100, 100),
+                alpha: 0,
+                duration: Phaser.Math.Between(2000, 3000),
+                ease: 'Cubic.in',
+                delay: Phaser.Math.Between(0, 500),
+                onComplete: () => confetti.destroy()
+            });
+        }
+    }
+
+    showCountdownOnScreen(seconds) {
+        // Create or update countdown display
+        if (!this.countdownDisplay) {
+            // Create countdown text
+            this.countdownDisplay = this.add.text(640, 150, '', {
+                fontSize: '72px',
+                fill: '#ffd700',
+                fontFamily: 'Arial',
+                fontStyle: 'bold',
+                stroke: '#000000',
+                strokeThickness: 8
+            }).setOrigin(0.5).setDepth(1000);
+        }
+
+        // Update text
+        if (seconds > 10) {
+            this.countdownDisplay.setText(`Game starts in: ${seconds}s`);
+            this.countdownDisplay.setFontSize('48px');
+            this.countdownDisplay.setColor('#ffd700');
+        } else if (seconds > 3) {
+            this.countdownDisplay.setText(`${seconds}`);
+            this.countdownDisplay.setFontSize('96px');
+            this.countdownDisplay.setColor('#ffaa00');
+        } else {
+            this.countdownDisplay.setText(`${seconds}`);
+            this.countdownDisplay.setFontSize('120px');
+            this.countdownDisplay.setColor('#ff0000');
+            
+            // Pulse animation for final seconds
+            this.tweens.add({
+                targets: this.countdownDisplay,
+                scale: 1.3,
+                duration: 150,
+                yoyo: true,
+                ease: 'Quad.out'
+            });
+        }
+    }
+
+    showStartCountdown() {
+        // Pause game initially
+        this.isGameOver = true;
+        
+        // Semi-transparent overlay
+        const overlay = this.add.rectangle(640, 360, 1280, 720, 0x000000, 0.6);
+        overlay.setDepth(999);
+
+        // Create countdown text
+        const countdownText = this.add.text(640, 360, '3', {
+            fontSize: '180px',
+            fill: '#ffd700',
+            fontFamily: 'Arial',
+            fontStyle: 'bold',
+            stroke: '#000000',
+            strokeThickness: 12
+        }).setOrigin(0.5).setDepth(1000);
+
+        let count = 3;
+        
+        // Countdown sequence
+        const countdownTimer = this.time.addEvent({
+            delay: 1000,
+            repeat: 3,
+            callback: () => {
+                if (count > 1) {
+                    count--;
+                    countdownText.setText(count.toString());
+                    countdownText.setScale(1);
+                    
+                    // Pulse animation
+                    this.tweens.add({
+                        targets: countdownText,
+                        scale: 1.2,
+                        duration: 200,
+                        yoyo: true,
+                        ease: 'Quad.out'
+                    });
+                    
+                    // Flash effect
+                    this.cameras.main.flash(200, 255, 215, 0, false);
+                    
+                } else if (count === 1) {
+                    // Show GO!
+                    countdownText.setText('GO!');
+                    countdownText.setScale(1);
+                    countdownText.setColor('#00ff00');
+                    
+                    this.tweens.add({
+                        targets: countdownText,
+                        scale: 1.5,
+                        alpha: 0,
+                        duration: 500,
+                        ease: 'Quad.out'
+                    });
+                    
+                    // Flash green
+                    this.cameras.main.flash(300, 0, 255, 0, false);
+                    
+                    // Remove overlay
+                    this.tweens.add({
+                        targets: overlay,
+                        alpha: 0,
+                        duration: 500,
+                        onComplete: () => {
+                            overlay.destroy();
+                            countdownText.destroy();
+                            // Resume game
+                            this.isGameOver = false;
+                        }
+                    });
+                    
+                    count--;
+                }
+            }
+        });
     }
 }

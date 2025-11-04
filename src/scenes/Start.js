@@ -19,6 +19,16 @@ export class Start extends Phaser.Scene {
         this.startMusic = this.sound.add('startMusic', { loop: true, volume: 0.5 });
         this.startMusic.play();
 
+        // Check if coming from rejoin matchmaking
+        if (this.registry.get('showLobbyDirectly')) {
+            this.registry.set('showLobbyDirectly', false); // Clear flag
+            const multiplayer = this.registry.get('multiplayerManager');
+            if (multiplayer) {
+                this.showLobbyAfterRejoin(multiplayer);
+                return; // Skip normal menu creation
+            }
+        }
+
         // Dark overlay for luxury feel
         const overlay = this.add.rectangle(640, 360, 1280, 720, 0x000000, 0.3);
 
@@ -195,7 +205,7 @@ export class Start extends Phaser.Scene {
         };
 
         const clickMultiplayer = () => {
-            this.showMultiplayerMenu();
+            this.showNameInputAndJoin();
         };
 
         multiplayerBg.on('pointerover', multiplayerHoverIn);
@@ -296,24 +306,31 @@ export class Start extends Phaser.Scene {
         this.background.tilePositionX += 2;
     }
 
-    showMultiplayerMenu() {
+    showNameInputAndJoin() {
         // Dim the main menu
         const dimOverlay = this.add.rectangle(640, 360, 1280, 720, 0x000000, 0.7);
         
         // Multiplayer menu panel
-        const menuPanel = this.add.rectangle(640, 360, 600, 500, 0x1a1a2e, 0.95);
+        const menuPanel = this.add.rectangle(640, 360, 600, 400, 0x1a1a2e, 0.95);
         menuPanel.setStrokeStyle(4, 0xffd700);
 
         // Title
-        const menuTitle = this.add.text(640, 180, '👥 MULTIPLAYER MODE', {
+        const menuTitle = this.add.text(640, 220, '👥 JOIN MATCHMAKING', {
             fontSize: '36px',
             fill: '#ffd700',
             fontFamily: 'Arial',
             fontStyle: 'bold'
         }).setOrigin(0.5);
 
+        // Subtitle
+        const subtitle = this.add.text(640, 280, 'You will be placed in a lobby with up to 5 players', {
+            fontSize: '18px',
+            fill: '#aaaaaa',
+            fontFamily: 'Arial'
+        }).setOrigin(0.5);
+
         // Player name input label
-        const nameLabel = this.add.text(640, 240, 'Enter Your Name:', {
+        const nameLabel = this.add.text(640, 340, 'Enter Your Name:', {
             fontSize: '22px',
             fill: '#ffffff',
             fontFamily: 'Arial'
@@ -326,7 +343,7 @@ export class Start extends Phaser.Scene {
         nameInput.maxLength = 15;
         nameInput.style.position = 'absolute';
         nameInput.style.left = '50%';
-        nameInput.style.top = '43%';
+        nameInput.style.top = '54%';
         nameInput.style.transform = 'translate(-50%, -50%)';
         nameInput.style.width = '300px';
         nameInput.style.height = '40px';
@@ -337,77 +354,32 @@ export class Start extends Phaser.Scene {
         nameInput.style.backgroundColor = '#2a2a3e';
         nameInput.style.color = '#ffffff';
         nameInput.style.outline = 'none';
-        nameInput.style.zIndex = '1000'; // Ensure it's above canvas
-        nameInput.style.pointerEvents = 'auto'; // Capture all pointer events
+        nameInput.style.zIndex = '1000';
+        nameInput.style.pointerEvents = 'auto';
         document.body.appendChild(nameInput);
         nameInput.focus();
 
-        // Create Room button
-        const createRoomBg = this.add.rectangle(640, 350, 250, 60, 0x00aa00, 0.9);
-        createRoomBg.setStrokeStyle(3, 0xffd700);
-        const createRoomBtn = this.add.text(640, 350, '🎲 CREATE ROOM', {
-            fontSize: '24px',
-            fill: '#ffffff',
-            fontFamily: 'Arial',
-            fontStyle: 'bold'
-        }).setOrigin(0.5);
-
-        createRoomBg.setInteractive({ useHandCursor: true });
-        createRoomBtn.setInteractive({ useHandCursor: true });
-
-        // Join Room label
-        const joinLabel = this.add.text(640, 420, 'Or Join Existing Room:', {
-            fontSize: '18px',
-            fill: '#aaaaaa',
-            fontFamily: 'Arial'
-        }).setOrigin(0.5);
-
-        // Room code input
-        const roomCodeInput = document.createElement('input');
-        roomCodeInput.type = 'text';
-        roomCodeInput.placeholder = 'Room Code';
-        roomCodeInput.maxLength = 6;
-        roomCodeInput.style.position = 'absolute';
-        roomCodeInput.style.left = '50%';
-        roomCodeInput.style.top = '63%';
-        roomCodeInput.style.transform = 'translate(-50%, -50%)';
-        roomCodeInput.style.width = '200px';
-        roomCodeInput.style.height = '40px';
-        roomCodeInput.style.fontSize = '20px';
-        roomCodeInput.style.textAlign = 'center';
-        roomCodeInput.style.border = '3px solid #ffd700';
-        roomCodeInput.style.borderRadius = '5px';
-        roomCodeInput.style.backgroundColor = '#2a2a3e';
-        roomCodeInput.style.color = '#ffffff';
-        roomCodeInput.style.outline = 'none';
-        roomCodeInput.style.textTransform = 'uppercase';
-        roomCodeInput.style.zIndex = '1000'; // Ensure it's above canvas
-        roomCodeInput.style.pointerEvents = 'auto'; // Capture all pointer events
-        document.body.appendChild(roomCodeInput);
-
-        // Prevent clicks on inputs from triggering game elements below
+        // Prevent clicks on input from triggering game elements below
         nameInput.addEventListener('mousedown', (e) => e.stopPropagation());
         nameInput.addEventListener('click', (e) => e.stopPropagation());
-        roomCodeInput.addEventListener('mousedown', (e) => e.stopPropagation());
-        roomCodeInput.addEventListener('click', (e) => e.stopPropagation());
 
-        // Join Room button
-        const joinRoomBg = this.add.rectangle(640, 510, 250, 60, 0x0066ff, 0.9);
-        joinRoomBg.setStrokeStyle(3, 0xffd700);
-        const joinRoomBtn = this.add.text(640, 510, '🚪 JOIN ROOM', {
+        // Join Matchmaking button
+        const joinBg = this.add.rectangle(640, 470, 280, 60, 0x00aa00, 0.9);
+        joinBg.setStrokeStyle(3, 0xffd700);
+        const joinBtn = this.add.text(640, 470, '🎮 JOIN MATCHMAKING', {
             fontSize: '24px',
             fill: '#ffffff',
             fontFamily: 'Arial',
             fontStyle: 'bold'
         }).setOrigin(0.5);
 
-        joinRoomBg.setInteractive({ useHandCursor: true });
-        joinRoomBtn.setInteractive({ useHandCursor: true });
+        joinBg.setInteractive({ useHandCursor: true });
+        joinBtn.setInteractive({ useHandCursor: true });
 
         // Back button
-        const backBg = this.add.rectangle(640, 580, 150, 45, 0xff0000, 0.8);
+        const backBg = this.add.rectangle(640, 560, 150, 45, 0xff0000, 0.8);
         backBg.setStrokeStyle(2, 0xffd700);
-        const backBtn = this.add.text(640, 580, '← BACK', {
+        const backBtn = this.add.text(640, 560, '← BACK', {
             fontSize: '20px',
             fill: '#ffffff',
             fontFamily: 'Arial',
@@ -418,52 +390,35 @@ export class Start extends Phaser.Scene {
         backBtn.setInteractive({ useHandCursor: true });
 
         // Store references for cleanup
-        const menuElements = [dimOverlay, menuPanel, menuTitle, nameLabel, createRoomBg, createRoomBtn, 
-                              joinLabel, joinRoomBg, joinRoomBtn, backBg, backBtn];
+        const menuElements = [dimOverlay, menuPanel, menuTitle, subtitle, nameLabel, joinBg, joinBtn, backBg, backBtn];
 
-        // Create Room handler
-        const handleCreateRoom = () => {
+        // Join Matchmaking handler
+        const handleJoinMatchmaking = () => {
             const playerName = nameInput.value.trim() || 'Player';
-            this.connectAndCreateRoom(playerName, menuElements, [nameInput, roomCodeInput]);
-        };
-
-        // Join Room handler
-        const handleJoinRoom = () => {
-            const playerName = nameInput.value.trim() || 'Player';
-            const roomCode = roomCodeInput.value.trim().toUpperCase();
-            if (!roomCode) {
-                alert('Please enter a room code');
-                return;
-            }
-            this.connectAndJoinRoom(playerName, roomCode, menuElements, [nameInput, roomCodeInput]);
+            this.connectAndJoinMatchmaking(playerName, menuElements, [nameInput]);
         };
 
         // Back handler
         const handleBack = () => {
             menuElements.forEach(el => el.destroy());
             nameInput.remove();
-            roomCodeInput.remove();
         };
 
-        createRoomBg.on('pointerdown', handleCreateRoom);
-        createRoomBtn.on('pointerdown', handleCreateRoom);
-        joinRoomBg.on('pointerdown', handleJoinRoom);
-        joinRoomBtn.on('pointerdown', handleJoinRoom);
+        joinBg.on('pointerdown', handleJoinMatchmaking);
+        joinBtn.on('pointerdown', handleJoinMatchmaking);
         backBg.on('pointerdown', handleBack);
         backBtn.on('pointerdown', handleBack);
 
         // Hover effects
-        createRoomBg.on('pointerover', () => createRoomBg.setScale(1.05));
-        createRoomBg.on('pointerout', () => createRoomBg.setScale(1));
-        joinRoomBg.on('pointerover', () => joinRoomBg.setScale(1.05));
-        joinRoomBg.on('pointerout', () => joinRoomBg.setScale(1));
+        joinBg.on('pointerover', () => joinBg.setScale(1.05));
+        joinBg.on('pointerout', () => joinBg.setScale(1));
         backBg.on('pointerover', () => backBg.setScale(1.05));
         backBg.on('pointerout', () => backBg.setScale(1));
     }
 
-    async connectAndCreateRoom(playerName, menuElements, inputs) {
+    async connectAndJoinMatchmaking(playerName, menuElements, inputs) {
         // Show loading
-        const loadingText = this.add.text(640, 650, 'Connecting to server...', {
+        const loadingText = this.add.text(640, 500, 'Connecting to server...', {
             fontSize: '20px',
             fill: '#ffff00',
             fontFamily: 'Arial'
@@ -475,69 +430,41 @@ export class Start extends Phaser.Scene {
             const multiplayer = new MultiplayerManager();
             
             await multiplayer.connect();
-            multiplayer.createRoom(playerName);
-
-            // Wait for room creation
-            await new Promise(resolve => {
-                multiplayer.socket.once('roomCreated', resolve);
-            });
-
-            // Show lobby
-            this.showLobby(multiplayer, menuElements, inputs, loadingText, true);
-        } catch (error) {
-            console.error('Connection error:', error);
-            loadingText.setText('❌ Could not connect to server!\nMake sure server is running.');
-            loadingText.setColor('#ff0000');
-        }
-    }
-
-    async connectAndJoinRoom(playerName, roomCode, menuElements, inputs) {
-        const loadingText = this.add.text(640, 650, 'Connecting to server...', {
-            fontSize: '20px',
-            fill: '#ffff00',
-            fontFamily: 'Arial'
-        }).setOrigin(0.5);
-
-        try {
-            const { MultiplayerManager } = await import('../MultiplayerManager.js');
-            const multiplayer = new MultiplayerManager();
             
-            await multiplayer.connect();
-            
-            // Set up listeners BEFORE joining
+            // Set up listeners BEFORE joining matchmaking
             const joinPromise = new Promise((resolve, reject) => {
                 const timeout = setTimeout(() => {
-                    reject(new Error('Join timeout'));
-                }, 5000);
+                    reject(new Error('Matchmaking timeout'));
+                }, 10000);
                 
-                multiplayer.socket.once('playerJoined', (data) => {
+                multiplayer.socket.once('lobbyJoined', (data) => {
                     clearTimeout(timeout);
                     resolve(data);
                 });
                 
                 multiplayer.socket.once('error', (data) => {
                     clearTimeout(timeout);
-                    reject(new Error(data.message || 'Could not join room'));
+                    reject(new Error(data.message || 'Could not join lobby'));
                 });
             });
             
-            // Now join the room
-            multiplayer.joinRoom(roomCode, playerName);
+            // Join matchmaking
+            multiplayer.joinMatchmaking(playerName);
             
-            // Wait for confirmation
+            // Wait for lobby assignment
             await joinPromise;
 
             // Show lobby
-            this.showLobby(multiplayer, menuElements, inputs, loadingText, false);
+            this.showLobby(multiplayer, menuElements, inputs, loadingText);
         } catch (error) {
-            console.error('Join error:', error);
-            const errorMsg = error.message || 'Could not join room';
-            loadingText.setText(`❌ ${errorMsg}\nCheck room code and try again.`);
+            console.error('Matchmaking error:', error);
+            const errorMsg = error.message || 'Could not connect to matchmaking';
+            loadingText.setText(`❌ ${errorMsg}\nPlease try again.`);
             loadingText.setColor('#ff0000');
         }
     }
 
-    showLobby(multiplayer, oldMenuElements, inputs, loadingText, isHost) {
+    showLobby(multiplayer, oldMenuElements, inputs, loadingText) {
         // Clean up old menu
         oldMenuElements.forEach(el => el.destroy());
         inputs.forEach(input => input.remove());
@@ -547,16 +474,16 @@ export class Start extends Phaser.Scene {
         const lobbyPanel = this.add.rectangle(640, 360, 600, 500, 0x1a1a2e, 0.95);
         lobbyPanel.setStrokeStyle(4, 0xffd700);
 
-        // Room code display
-        const roomCodeText = this.add.text(640, 180, `Room Code: ${multiplayer.roomCode}`, {
-            fontSize: '40px',
+        // Lobby title
+        const lobbyTitle = this.add.text(640, 180, '🎮 MATCHMAKING LOBBY', {
+            fontSize: '32px',
             fill: '#ffd700',
             fontFamily: 'Arial',
             fontStyle: 'bold'
         }).setOrigin(0.5);
 
         // Players label
-        const playersLabel = this.add.text(640, 250, 'Players in Lobby:', {
+        const playersLabel = this.add.text(640, 240, 'Players in Lobby:', {
             fontSize: '24px',
             fill: '#ffffff',
             fontFamily: 'Arial',
@@ -564,66 +491,102 @@ export class Start extends Phaser.Scene {
         }).setOrigin(0.5);
 
         // Players list
-        const playersText = this.add.text(640, 350, '', {
+        const playersText = this.add.text(640, 320, '', {
             fontSize: '20px',
             fill: '#00ff88',
             fontFamily: 'Arial',
             align: 'center'
         }).setOrigin(0.5);
 
+        // Countdown text
+        const countdownText = this.add.text(640, 440, '', {
+            fontSize: '28px',
+            fill: '#ffff00',
+            fontFamily: 'Arial',
+            fontStyle: 'bold'
+        }).setOrigin(0.5);
+
+        // Status text (waiting for players or countdown running)
+        const statusText = this.add.text(640, 500, 'Waiting for more players...\n(Need at least 2 to start)', {
+            fontSize: '20px',
+            fill: '#aaaaaa',
+            fontFamily: 'Arial',
+            align: 'center',
+            fontStyle: 'italic'
+        }).setOrigin(0.5);
+
+        // Pulsing animation for status text
+        this.tweens.add({
+            targets: statusText,
+            alpha: 0.5,
+            duration: 800,
+            yoyo: true,
+            repeat: -1
+        });
+
         // Update players list
-        const updatePlayersList = () => {
+        const updatePlayersList = (data) => {
+            if (data && data.players) {
+                // Update remote players from server data
+                multiplayer.remotePlayers = { ...data.players };
+                // Always remove self from remote players list using OUR socket ID
+                delete multiplayer.remotePlayers[multiplayer.socket.id];
+            }
+            
             const players = Object.values(multiplayer.remotePlayers);
             const playerNames = [multiplayer.playerName, ...players.map(p => p.name)];
             playersText.setText(playerNames.join('\n'));
         };
 
-        updatePlayersList();
+        // Initial update - get the current state
+        const players = Object.values(multiplayer.remotePlayers);
+        const playerNames = [multiplayer.playerName, ...players.map(p => p.name)];
+        playersText.setText(playerNames.join('\n'));
 
-        // Listen for new players
-        multiplayer.socket.on('playerJoined', () => {
-            updatePlayersList();
+        // Listen for new players joining
+        multiplayer.socket.on('lobbyJoined', (data) => {
+            updatePlayersList(data);
         });
 
-        // Start button (only for host)
-        let startBg, startBtn;
-        if (isHost) {
-            startBg = this.add.rectangle(640, 480, 250, 60, 0x00aa00, 0.9);
-            startBg.setStrokeStyle(3, 0xffd700);
-            startBtn = this.add.text(640, 480, '▶️ START GAME', {
-                fontSize: '28px',
-                fill: '#ffffff',
-                fontFamily: 'Arial',
-                fontStyle: 'bold'
-            }).setOrigin(0.5);
+        // Listen for players leaving
+        multiplayer.socket.on('playerLeft', (data) => {
+            console.log(`${data.playerName} left the lobby (${data.playerCount} remaining)`);
+            // Remove the player from remote players
+            delete multiplayer.remotePlayers[data.playerId];
+            // Update the display
+            const players = Object.values(multiplayer.remotePlayers);
+            const playerNames = [multiplayer.playerName, ...players.map(p => p.name)];
+            playersText.setText(playerNames.join('\n'));
+        });
 
-            startBg.setInteractive({ useHandCursor: true });
-            startBtn.setInteractive({ useHandCursor: true });
+        // Listen for countdown start
+        multiplayer.socket.on('countdownStarted', (data) => {
+            statusText.setText('Game starting soon!');
+            countdownText.setText(`Starting in: ${data.seconds}s`);
+        });
 
-            const handleStart = () => {
-                multiplayer.startGame();
-            };
+        // Listen for countdown updates
+        multiplayer.socket.on('countdownUpdate', (data) => {
+            countdownText.setText(`Starting in: ${data.seconds}s`);
+            
+            // Flash effect when countdown is low
+            if (data.seconds <= 10) {
+                countdownText.setColor('#ff0000');
+                this.tweens.add({
+                    targets: countdownText,
+                    scale: 1.2,
+                    duration: 100,
+                    yoyo: true
+                });
+            }
+        });
 
-            startBg.on('pointerdown', handleStart);
-            startBtn.on('pointerdown', handleStart);
-            startBg.on('pointerover', () => startBg.setScale(1.05));
-            startBg.on('pointerout', () => startBg.setScale(1));
-        } else {
-            const waitingText = this.add.text(640, 480, 'Waiting for host to start...', {
-                fontSize: '22px',
-                fill: '#ffff00',
-                fontFamily: 'Arial',
-                fontStyle: 'italic'
-            }).setOrigin(0.5);
-
-            this.tweens.add({
-                targets: waitingText,
-                alpha: 0.5,
-                duration: 800,
-                yoyo: true,
-                repeat: -1
-            });
-        }
+        // Listen for countdown cancellation (player left, < 2 players)
+        multiplayer.socket.on('countdownCancelled', () => {
+            countdownText.setText('');
+            statusText.setText('Waiting for more players...\n(Need at least 2 to start)');
+            updatePlayersList();
+        });
 
         // Listen for game start
         multiplayer.socket.on('gameStarted', () => {
@@ -655,6 +618,34 @@ export class Start extends Phaser.Scene {
         leaveBtn.on('pointerdown', handleLeave);
         leaveBg.on('pointerover', () => leaveBg.setScale(1.05));
         leaveBg.on('pointerout', () => leaveBg.setScale(1));
+    }
+
+    showLobbyAfterRejoin(multiplayer) {
+        // Create minimal background
+        const overlay = this.add.rectangle(640, 360, 1280, 720, 0x000000, 0.3);
+
+        // Show "Joining lobby..." text
+        const joiningText = this.add.text(640, 360, 'Joining new lobby...', {
+            fontSize: '32px',
+            fill: '#ffd700',
+            fontFamily: 'Arial',
+            fontStyle: 'bold'
+        }).setOrigin(0.5);
+
+        // Pulsing animation
+        this.tweens.add({
+            targets: joiningText,
+            alpha: 0.5,
+            duration: 800,
+            yoyo: true,
+            repeat: -1
+        });
+
+        // Wait for lobby to be ready, then show it
+        this.time.delayedCall(500, () => {
+            joiningText.destroy();
+            this.showLobby(multiplayer, [overlay], [], { destroy: () => {} });
+        });
     }
     
 }
