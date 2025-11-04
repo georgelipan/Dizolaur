@@ -53,7 +53,7 @@ export class GameOver extends BaseScene {
         });
 
         // Version number in bottom-left corner
-        this.add.text(10, 710, 'v2.0', {
+        this.add.text(10, 710, 'v2.1', {
             fontSize: '14px',
             fill: '#000000',
             fontFamily: 'Arial',
@@ -237,6 +237,7 @@ export class GameOver extends BaseScene {
             // Clear registry
             this.registry.set('isMultiplayer', false);
             this.registry.set('multiplayerManager', null);
+            this.registry.set('mapSeed', null); // Clear map seed
             
             // Clear session storage
             sessionStorage.clear();

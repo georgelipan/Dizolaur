@@ -70,7 +70,7 @@ export class Start extends BaseScene {
         }).setOrigin(0.5);
 
         // Version number in bottom-left corner
-        this.add.text(10, 710, 'v2.0', {
+        this.add.text(10, 710, 'v2.1', {
             fontSize: '14px',
             fill: '#000000',
             fontFamily: 'Arial',
@@ -644,22 +644,31 @@ export class Start extends BaseScene {
         });
 
         // Listen for game start
-        multiplayer.socket.on('gameStarted', () => {
+        multiplayer.socket.on('gameStarted', (data) => {
+            console.log('Game started in Start scene with seed:', data?.seed);
             this.startMusic.stop();
             this.registry.set('isMultiplayer', true);
             this.registry.set('multiplayerManager', multiplayer);
             
-            // Force stop the Game scene if it exists, then start fresh
+            // CRITICAL: Store the map seed in registry for Game scene
+            if (data && data.seed !== undefined) {
+                this.registry.set('mapSeed', data.seed);
+            }
+            
+            // NUCLEAR OPTION: Completely remove and recreate Game scene to force clean state
             const gameScene = this.scene.get('Game');
             if (gameScene) {
-                this.scene.stop('Game');
-                // Small delay to ensure scene is fully stopped before restarting
+                console.log('Destroying existing Game scene completely...');
+                this.scene.remove('Game');
+            }
+            
+            // Import and re-add Game scene fresh
+            import('./Game.js').then(module => {
+                this.scene.add('Game', module.Game, false);
                 this.time.delayedCall(100, () => {
                     this.scene.start('Game');
                 });
-            } else {
-                this.scene.start('Game');
-            }
+            });
         });
 
         // Leave button

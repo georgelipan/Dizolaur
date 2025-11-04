@@ -65,6 +65,10 @@ export class Game extends BaseScene {
             }
             this.remotePlayerSprites = null;
             this.remotePlayers = null;
+            
+            // CRITICAL: Reset seeded RNG state to prevent old seed from persisting
+            this.mapSeed = null;
+            this.rngState = null;
         } catch (e) {
             console.warn('Error in init cleanup:', e);
         }
@@ -175,6 +179,14 @@ export class Game extends BaseScene {
         // Check if this is a multiplayer game
         this.isMultiplayer = this.registry.get('isMultiplayer') || false;
         this.multiplayer = this.registry.get('multiplayerManager') || null;
+        
+        // CRITICAL: Get the map seed from registry (set by Start scene)
+        const seedFromRegistry = this.registry.get('mapSeed');
+        if (seedFromRegistry !== undefined && seedFromRegistry !== null) {
+            this.setSeed(seedFromRegistry);
+            // Clear it from registry after reading
+            this.registry.set('mapSeed', null);
+        }
         
         // Remote players container
         this.remotePlayers = {};
@@ -1242,7 +1254,7 @@ export class Game extends BaseScene {
         }).setOrigin(0, 0.5);
 
         // Version number in bottom-left corner
-        this.add.text(10, 710, 'v2.0', {
+        this.add.text(10, 710, 'v2.1', {
             fontSize: '14px',
             fill: '#000000',
             fontFamily: 'Arial',
@@ -1614,9 +1626,15 @@ export class Game extends BaseScene {
     }
 
     shutdown() {
+        console.log('🧹 SHUTDOWN: Aggressive cleanup started...');
+        
         // Stop all sounds
         if (this.bgMusic) {
             this.bgMusic.stop();
+            this.bgMusic.destroy();
+        }
+        if (this.jumpSound) {
+            this.jumpSound.destroy();
         }
         
         // Clean up multiplayer event listeners when scene is destroyed
@@ -1636,22 +1654,32 @@ export class Game extends BaseScene {
                     this.remotePlayerSprites[playerId].nameText.destroy();
                 }
             });
-            this.remotePlayerSprites = {};
+            this.remotePlayerSprites = null;
         }
-        this.remotePlayers = {};
+        this.remotePlayers = null;
         
         // Destroy all game object groups and their children
         if (this.obstacles) {
             this.obstacles.clear(true, true); // Remove and destroy all
+            this.obstacles = null;
         }
         if (this.pushObstacles) {
             this.pushObstacles.clear(true, true);
+            this.pushObstacles = null;
         }
         if (this.platforms) {
             this.platforms.clear(true, true);
+            this.platforms = null;
         }
         if (this.birds) {
             this.birds.clear(true, true);
+            this.birds = null;
+        }
+        
+        // Destroy player
+        if (this.player) {
+            this.player.destroy();
+            this.player = null;
         }
         
         // Clear any active tweens
@@ -1663,5 +1691,25 @@ export class Game extends BaseScene {
         if (this.time) {
             this.time.removeAllEvents();
         }
+        
+        // CRITICAL: Reset ALL game state variables
+        this.isGameOver = false;
+        this.score = 0;
+        this.gameSpeed = 6;
+        this.mapSeed = null;
+        this.rngState = null;
+        this.obstacleTimer = 0;
+        this.pushObstacleTimer = 0;
+        this.platformTimer = 0;
+        this.birdTimer = 0;
+        this.lastObstacleX = -999;
+        
+        console.log('🧹 SHUTDOWN: Complete! Scene is clean.');
+    }
+    
+    destroy() {
+        console.log('💀 DESTROY: Scene is being removed from memory');
+        // Call shutdown to ensure everything is cleaned
+        this.shutdown();
     }
 }
