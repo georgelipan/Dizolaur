@@ -141,6 +141,34 @@ export class Game extends BaseScene {
         this.jumpHoldTime = 0;
         this.minJumpTime = 100; // Minimum hold time for short hop (ms)
         this.maxJumpTime = 400; // Maximum hold time for full jump (ms)
+        
+        // Seeded RNG for synchronized multiplayer maps
+        this.mapSeed = null;
+        this.rngState = null;
+    }
+    
+    /**
+     * Seeded random number generator for synchronized obstacle spawning
+     * Uses a simple LCG (Linear Congruential Generator) algorithm
+     */
+    seededRandom() {
+        if (this.rngState === null) {
+            // Fallback to Math.random if no seed is set (single player)
+            return Math.random();
+        }
+        // LCG formula: (a * state + c) % m
+        this.rngState = (this.rngState * 1664525 + 1013904223) % 4294967296;
+        return this.rngState / 4294967296;
+    }
+    
+    /**
+     * Initialize the seeded RNG with a given seed
+     */
+    setSeed(seed) {
+        this.mapSeed = seed;
+        // Convert float seed to integer state
+        this.rngState = Math.floor(seed * 4294967296);
+        console.log('Map seed set:', seed, '-> state:', this.rngState);
     }
 
     initializeMultiplayer() {
@@ -172,9 +200,15 @@ export class Game extends BaseScene {
                 this.showCountdownOnScreen(data.seconds);
             });
             
-            // Listen for game start (just hide lobby countdown, create() already shows start countdown)
-            this.multiplayer.socket.on('gameStarted', () => {
-                console.log('Game started event received in Game scene');
+            // Listen for game start (capture seed for synchronized map)
+            this.multiplayer.socket.on('gameStarted', (data) => {
+                console.log('Game started event received in Game scene', data);
+                
+                // Set the seed for synchronized obstacle spawning
+                if (data && data.seed !== undefined) {
+                    this.setSeed(data.seed);
+                }
+                
                 if (this.countdownDisplay) {
                     this.countdownDisplay.destroy();
                     this.countdownDisplay = null;
@@ -611,10 +645,9 @@ export class Game extends BaseScene {
                 this.obstacleTimer = 0;
                 // Calculate next spawn time (gets faster as game progresses)
                 const speedFactor = Math.max(0.5, 1 - (this.score / 1000));
-                this.nextObstacleTime = Phaser.Math.Between(
-                    Math.floor(this.minObstacleInterval * speedFactor),
-                    Math.floor(this.maxObstacleInterval * speedFactor)
-                );
+                const min = Math.floor(this.minObstacleInterval * speedFactor);
+                const max = Math.floor(this.maxObstacleInterval * speedFactor);
+                this.nextObstacleTime = Math.floor(this.seededRandom() * (max - min + 1)) + min;
             } else {
                 // Not enough distance, wait a few frames before trying again
                 this.obstacleTimer = Math.max(0, this.nextObstacleTime - 10);
@@ -632,10 +665,9 @@ export class Game extends BaseScene {
                 this.pushObstacleTimer = 0;
                 // Less frequent than regular obstacles
                 const speedFactor = Math.max(0.7, 1 - (this.score / 1500));
-                this.nextPushObstacleTime = Phaser.Math.Between(
-                    Math.floor(this.minPushObstacleInterval * speedFactor),
-                    Math.floor(this.maxPushObstacleInterval * speedFactor)
-                );
+                const min = Math.floor(this.minPushObstacleInterval * speedFactor);
+                const max = Math.floor(this.maxPushObstacleInterval * speedFactor);
+                this.nextPushObstacleTime = Math.floor(this.seededRandom() * (max - min + 1)) + min;
             } else {
                 // Not enough distance, wait a few frames before trying again
                 this.pushObstacleTimer = Math.max(0, this.nextPushObstacleTime - 10);
@@ -649,10 +681,9 @@ export class Game extends BaseScene {
             this.spawnPlatform();
             this.platformTimer = 0;
             const speedFactor = Math.max(0.6, 1 - (this.score / 1500));
-            this.nextPlatformTime = Phaser.Math.Between(
-                Math.floor(this.minPlatformInterval * speedFactor),
-                Math.floor(this.maxPlatformInterval * speedFactor)
-            );
+            const min = Math.floor(this.minPlatformInterval * speedFactor);
+            const max = Math.floor(this.maxPlatformInterval * speedFactor);
+            this.nextPlatformTime = Math.floor(this.seededRandom() * (max - min + 1)) + min;
         }
     }
 
@@ -661,7 +692,7 @@ export class Game extends BaseScene {
         if (this.birdTimer >= this.nextBirdTime) {
             this.spawnBird();
             this.birdTimer = 0;
-            this.nextBirdTime = Phaser.Math.Between(100, 200);
+            this.nextBirdTime = Math.floor(this.seededRandom() * 100) + 100; // 100-200
         }
     }
 
@@ -960,7 +991,7 @@ export class Game extends BaseScene {
         const platformY = this.groundY - 200;
         
         // Random number of platforms to spawn (1, 2, or 3 merged together)
-        const numPlatforms = Phaser.Math.Between(1, 3);
+        const numPlatforms = Math.floor(this.seededRandom() * 3) + 1; // 1-3 platforms
         
         // Get platform width with scale 3.2 (slightly larger)
         const platformScale = 3.2;
@@ -987,9 +1018,9 @@ export class Game extends BaseScene {
     }
     
     spawnBird() {
-        // Spawn flying bird at random height in sky
-        const birdY = Phaser.Math.Between(100, 350);
-        const birdSize = Phaser.Math.Between(15, 25);
+        // Spawn flying bird at random height in sky (using seeded RNG)
+        const birdY = Math.floor(this.seededRandom() * 250) + 100; // 100-350
+        const birdSize = Math.floor(this.seededRandom() * 10) + 15; // 15-25
         
         // Create bird using simple shapes (animated)
         const bird = this.add.container(1280 + 50, birdY);
@@ -1015,7 +1046,7 @@ export class Game extends BaseScene {
         );
         
         bird.add([body, leftWing, rightWing]);
-        bird.moveSpeed = Phaser.Math.FloatBetween(2, 4);
+        bird.moveSpeed = this.seededRandom() * 2 + 2; // 2-4
         
         // Flapping animation
         this.tweens.add({
@@ -1027,11 +1058,13 @@ export class Game extends BaseScene {
             ease: 'Sine.inOut'
         });
         
-        // Bobbing animation
+        // Bobbing animation (use seeded random for consistency)
+        const bobbingOffset = Math.floor(this.seededRandom() * 20) - 10; // -10 to 10
+        const bobbingDuration = Math.floor(this.seededRandom() * 400) + 800; // 800-1200
         this.tweens.add({
             targets: bird,
-            y: birdY + Phaser.Math.Between(-10, 10),
-            duration: Phaser.Math.Between(800, 1200),
+            y: birdY + bobbingOffset,
+            duration: bobbingDuration,
             yoyo: true,
             repeat: -1,
             ease: 'Sine.inOut'
