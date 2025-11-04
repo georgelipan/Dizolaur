@@ -645,14 +645,20 @@ export class Start extends BaseScene {
 
         // Listen for game start
         multiplayer.socket.on('gameStarted', (data) => {
-            console.log('Game started in Start scene with seed:', data?.seed);
+            console.log('🎮 Game started in Start scene!');
+            console.log('📦 Received data:', data);
+            console.log('🎲 Seed from server:', data?.seed);
+            
             this.startMusic.stop();
             this.registry.set('isMultiplayer', true);
             this.registry.set('multiplayerManager', multiplayer);
             
             // CRITICAL: Store the map seed in registry for Game scene
             if (data && data.seed !== undefined) {
+                console.log('✅ Storing seed in registry:', data.seed);
                 this.registry.set('mapSeed', data.seed);
+            } else {
+                console.error('❌ NO SEED RECEIVED FROM SERVER!');
             }
             
             // NUCLEAR OPTION: Completely remove and recreate Game scene to force clean state

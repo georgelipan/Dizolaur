@@ -182,10 +182,14 @@ export class Game extends BaseScene {
         
         // CRITICAL: Get the map seed from registry (set by Start scene)
         const seedFromRegistry = this.registry.get('mapSeed');
+        console.log('🎲 Checking for seed in registry:', seedFromRegistry);
         if (seedFromRegistry !== undefined && seedFromRegistry !== null) {
+            console.log('✅ Setting seed from registry:', seedFromRegistry);
             this.setSeed(seedFromRegistry);
             // Clear it from registry after reading
             this.registry.set('mapSeed', null);
+        } else {
+            console.warn('⚠️ NO SEED FOUND IN REGISTRY! Map will be random per player!');
         }
         
         // Remote players container

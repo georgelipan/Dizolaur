@@ -79,6 +79,7 @@ function startCountdown(roomCode) {
             
             // Start the game
             rooms[roomCode].gameStarted = true;
+            console.log(`🎲 Sending seed to all players: ${rooms[roomCode].obstaclesSeed}`);
             io.to(roomCode).emit('gameStarted', {
                 seed: rooms[roomCode].obstaclesSeed,
                 players: rooms[roomCode].players
@@ -163,6 +164,7 @@ io.on('connection', (socket) => {
         
         // Start the game immediately
         rooms[roomCode].gameStarted = true;
+        console.log(`🎲 [START NOW] Sending seed to all players: ${rooms[roomCode].obstaclesSeed}`);
         io.to(roomCode).emit('gameStarted', {
             seed: rooms[roomCode].obstaclesSeed,
             players: rooms[roomCode].players
