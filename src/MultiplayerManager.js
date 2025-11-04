@@ -78,6 +78,12 @@ export class MultiplayerManager {
         // Game started
         this.socket.on('gameStarted', (data) => {
             console.log('Game started with seed:', data.seed);
+            // Update remote players with fresh data from server (reset isAlive, score)
+            if (data.players) {
+                this.remotePlayers = data.players;
+                // Remove self from remote players
+                delete this.remotePlayers[this.socket.id];
+            }
         });
 
         // Player moved
