@@ -147,13 +147,19 @@ export class Game extends Phaser.Scene {
         if (this.isMultiplayer && this.multiplayer) {
             console.log('Multiplayer mode enabled');
             
-            // Listen for countdown updates from server
+            // Remove any existing event listeners to prevent duplicates
+            this.multiplayer.socket.off('countdownUpdate');
+            this.multiplayer.socket.off('gameStarted');
+            this.multiplayer.socket.off('gameEnded');
+            
+            // Listen for countdown updates from server (in lobby)
             this.multiplayer.socket.on('countdownUpdate', (data) => {
                 this.showCountdownOnScreen(data.seconds);
             });
             
-            // Listen for game start (hide countdown)
+            // Listen for game start (just hide lobby countdown, create() already shows start countdown)
             this.multiplayer.socket.on('gameStarted', () => {
+                console.log('Game started event received in Game scene');
                 if (this.countdownDisplay) {
                     this.countdownDisplay.destroy();
                     this.countdownDisplay = null;
@@ -1188,7 +1194,7 @@ export class Game extends Phaser.Scene {
         }).setOrigin(0, 0.5);
 
         // Version number in bottom-left corner
-        this.add.text(10, 710, 'v1.4', {
+        this.add.text(10, 710, 'v1.5', {
             fontSize: '14px',
             fill: '#000000',
             fontFamily: 'Arial',
