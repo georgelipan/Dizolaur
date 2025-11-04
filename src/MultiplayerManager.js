@@ -10,7 +10,7 @@ export class MultiplayerManager {
         this.playerName = null;
         this.isHost = false;
         this.remotePlayers = {}; // Other players in the room
-        this.serverUrl = 'https://YOUR-RENDER-URL.onrender.com'; // Change for production
+        this.serverUrl = 'https://dizolaur.onrender.com';
     }
 
     connect() {
