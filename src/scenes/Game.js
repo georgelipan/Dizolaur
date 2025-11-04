@@ -1207,7 +1207,7 @@ export class Game extends Phaser.Scene {
         }).setOrigin(0, 0.5);
 
         // Version number in bottom-left corner
-        this.add.text(10, 710, 'v1.8', {
+        this.add.text(10, 710, 'v1.9', {
             fontSize: '14px',
             fill: '#000000',
             fontFamily: 'Arial',

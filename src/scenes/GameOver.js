@@ -51,7 +51,7 @@ export class GameOver extends Phaser.Scene {
         });
 
         // Version number in bottom-left corner
-        this.add.text(10, 710, 'v1.8', {
+        this.add.text(10, 710, 'v1.9', {
             fontSize: '14px',
             fill: '#000000',
             fontFamily: 'Arial',
@@ -188,62 +188,19 @@ export class GameOver extends Phaser.Scene {
             yOffset = 510;
         }
 
-        // Button container
+        // Button container - only Menu button now
         const buttonY = yOffset;
         
-        // Restart button with background
-        const restartBg = this.add.rectangle(640, buttonY, 280, 60, 0x00aa00, 0.9);
-        restartBg.setStrokeStyle(3, 0x00ff00);
+        // Menu button with background (centered and larger)
+        const menuY = buttonY;
+        const menuBg = this.add.rectangle(640, menuY, 280, 60, 0xff6600, 0.9);
+        menuBg.setStrokeStyle(3, 0xff8800);
         
-        const restartButton = this.add.text(640, buttonY, '▶ PLAY AGAIN', {
+        const menuButton = this.add.text(640, menuY, '⌂ BACK TO MENU', {
             fontSize: '32px',
             fill: '#ffffff',
             fontFamily: 'Arial',
             fontStyle: 'bold'
-        }).setOrigin(0.5);
-        
-        restartBg.setInteractive({ useHandCursor: true });
-        restartButton.setInteractive({ useHandCursor: true });
-
-        const restartHoverIn = () => {
-            restartBg.setScale(1.05);
-            restartButton.setScale(1.05);
-            restartBg.setFillStyle(0x00ff00, 1);
-        };
-        
-        const restartHoverOut = () => {
-            restartBg.setScale(1);
-            restartButton.setScale(1);
-            restartBg.setFillStyle(0x00aa00, 0.9);
-        };
-        
-        const restartClick = () => {
-            this.scoreSound.stop();
-            
-            // If multiplayer, rejoin matchmaking instead of starting new game
-            if (this.isMultiplayer && this.multiplayer) {
-                this.rejoinMatchmaking();
-            } else {
-                this.scene.start('Game');
-            }
-        };
-
-        restartBg.on('pointerover', restartHoverIn);
-        restartBg.on('pointerout', restartHoverOut);
-        restartBg.on('pointerdown', restartClick);
-        restartButton.on('pointerover', restartHoverIn);
-        restartButton.on('pointerout', restartHoverOut);
-        restartButton.on('pointerdown', restartClick);
-
-        // Menu button with background
-        const menuY = 585;
-        const menuBg = this.add.rectangle(640, menuY, 200, 45, 0x555555, 0.8);
-        menuBg.setStrokeStyle(2, 0x888888);
-        
-        const menuButton = this.add.text(640, menuY, '⌂ MENU', {
-            fontSize: '24px',
-            fill: '#ffffff',
-            fontFamily: 'Arial'
         }).setOrigin(0.5);
         
         menuBg.setInteractive({ useHandCursor: true });
@@ -252,17 +209,34 @@ export class GameOver extends Phaser.Scene {
         const menuHoverIn = () => {
             menuBg.setScale(1.05);
             menuButton.setScale(1.05);
-            menuBg.setFillStyle(0x777777, 1);
+            menuBg.setFillStyle(0xff8800, 1);
         };
         
         const menuHoverOut = () => {
             menuBg.setScale(1);
             menuButton.setScale(1);
-            menuBg.setFillStyle(0x555555, 0.8);
+            menuBg.setFillStyle(0xff6600, 0.9);
         };
         
         const menuClick = () => {
             this.scoreSound.stop();
+            
+            // Clear all multiplayer state
+            if (this.isMultiplayer && this.multiplayer) {
+                if (this.multiplayer.socket) {
+                    this.multiplayer.socket.removeAllListeners();
+                    this.multiplayer.socket.disconnect();
+                }
+            }
+            
+            // Clear registry
+            this.registry.set('isMultiplayer', false);
+            this.registry.set('multiplayerManager', null);
+            
+            // Clear session storage
+            sessionStorage.clear();
+            
+            // Go back to menu as a fresh new player
             this.scene.start('Start');
         };
 
@@ -274,14 +248,14 @@ export class GameOver extends Phaser.Scene {
         menuButton.on('pointerdown', menuClick);
 
         // Keyboard hint
-        this.add.text(640, 650, 'SPACE - Play Again  |  ESC - Menu', {
+        this.add.text(640, 650, 'ESC or SPACE - Back to Menu', {
             fontSize: '16px',
             fill: '#888888',
             fontFamily: 'Arial'
         }).setOrigin(0.5);
 
         // Keyboard shortcuts
-        this.input.keyboard.on('keydown-SPACE', restartClick);
+        this.input.keyboard.on('keydown-SPACE', menuClick);
         this.input.keyboard.on('keydown-ESC', menuClick);
     }
 
@@ -413,83 +387,5 @@ export class GameOver extends Phaser.Scene {
 
     saveHighScore(score) {
         localStorage.setItem('dizolaur_highscore', score.toString());
-    }
-
-    async rejoinMatchmaking() {
-        // Show loading overlay
-        const overlay = this.add.rectangle(640, 360, 1280, 720, 0x000000, 0.7);
-        const loadingText = this.add.text(640, 360, 'Finding new match...', {
-            fontSize: '32px',
-            fill: '#ffd700',
-            fontFamily: 'Arial',
-            fontStyle: 'bold'
-        }).setOrigin(0.5);
-
-        // Pulsing animation
-        this.tweens.add({
-            targets: loadingText,
-            alpha: 0.5,
-            duration: 800,
-            yoyo: true,
-            repeat: -1
-        });
-
-        try {
-            // Properly disconnect from current session
-            if (this.multiplayer.socket) {
-                this.multiplayer.socket.removeAllListeners();
-                this.multiplayer.socket.disconnect();
-                this.multiplayer.socket = null;
-            }
-            
-            // Clear remote players data from previous game
-            this.multiplayer.remotePlayers = {};
-            this.multiplayer.roomCode = null;
-            this.multiplayer.isConnected = false;
-
-            // Reconnect and rejoin matchmaking
-            await this.multiplayer.connect();
-            
-            // Set up listeners for new lobby
-            const joinPromise = new Promise((resolve, reject) => {
-                const timeout = setTimeout(() => {
-                    reject(new Error('Matchmaking timeout'));
-                }, 10000);
-                
-                this.multiplayer.socket.once('lobbyJoined', (data) => {
-                    clearTimeout(timeout);
-                    resolve(data);
-                });
-                
-                this.multiplayer.socket.once('error', (data) => {
-                    clearTimeout(timeout);
-                    reject(new Error(data.message || 'Could not join lobby'));
-                });
-            });
-            
-            // Join matchmaking with same player name
-            this.multiplayer.joinMatchmaking(this.multiplayer.playerName);
-            
-            // Wait for lobby assignment
-            await joinPromise;
-
-            // Store player name in sessionStorage for after reload
-            sessionStorage.setItem('playerName', this.multiplayer.playerName);
-            sessionStorage.setItem('rejoiningMatchmaking', 'true');
-            
-            // Force a hard reload to clear all cached game state
-            // This is the only reliable way to clear Phaser's internal cache
-            window.location.reload();
-            
-        } catch (error) {
-            console.error('Rejoin matchmaking error:', error);
-            loadingText.setText('❌ Could not rejoin matchmaking\nReturning to menu...');
-            loadingText.setColor('#ff0000');
-            
-            // Return to menu after error
-            this.time.delayedCall(2000, () => {
-                this.scene.start('Start');
-            });
-        }
     }
 }

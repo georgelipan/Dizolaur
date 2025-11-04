@@ -19,28 +19,6 @@ export class Start extends Phaser.Scene {
         this.startMusic = this.sound.add('startMusic', { loop: true, volume: 0.5 });
         this.startMusic.play();
 
-        // Check if automatically rejoining matchmaking after page reload
-        if (sessionStorage.getItem('rejoiningMatchmaking') === 'true') {
-            sessionStorage.removeItem('rejoiningMatchmaking');
-            const playerName = sessionStorage.getItem('playerName');
-            if (playerName) {
-                sessionStorage.removeItem('playerName');
-                // Auto-join matchmaking after reload
-                this.autoRejoinMatchmaking(playerName);
-                return;
-            }
-        }
-
-        // Check if coming from rejoin matchmaking
-        if (this.registry.get('showLobbyDirectly')) {
-            this.registry.set('showLobbyDirectly', false); // Clear flag
-            const multiplayer = this.registry.get('multiplayerManager');
-            if (multiplayer) {
-                this.showLobbyAfterRejoin(multiplayer);
-                return; // Skip normal menu creation
-            }
-        }
-
         // Dark overlay for luxury feel
         const overlay = this.add.rectangle(640, 360, 1280, 720, 0x000000, 0.3);
 
@@ -90,7 +68,7 @@ export class Start extends Phaser.Scene {
         }).setOrigin(0.5);
 
         // Version number in bottom-left corner
-        this.add.text(10, 710, 'v1.8', {
+        this.add.text(10, 710, 'v1.9', {
             fontSize: '14px',
             fill: '#000000',
             fontFamily: 'Arial',
@@ -717,50 +695,6 @@ export class Start extends Phaser.Scene {
             joiningText.destroy();
             this.showLobby(multiplayer, [overlay], [], { destroy: () => {} });
         });
-    }
-
-    async autoRejoinMatchmaking(playerName) {
-        // Show loading screen
-        const overlay = this.add.rectangle(640, 360, 1280, 720, 0x000000, 0.5);
-        const loadingText = this.add.text(640, 360, '🔄 Rejoining matchmaking...', {
-            fontSize: '28px',
-            fill: '#ffd700',
-            fontFamily: 'Arial',
-            fontStyle: 'bold'
-        }).setOrigin(0.5);
-
-        this.tweens.add({
-            targets: loadingText,
-            alpha: 0.5,
-            duration: 800,
-            yoyo: true,
-            repeat: -1
-        });
-
-        try {
-            const { MultiplayerManager } = await import('./MultiplayerManager.js');
-            const multiplayer = new MultiplayerManager();
-            
-            await multiplayer.connect();
-            multiplayer.joinMatchmaking(playerName);
-            
-            this.registry.set('isMultiplayer', true);
-            this.registry.set('multiplayerManager', multiplayer);
-            
-            // Wait a moment for lobby join, then show lobby
-            this.time.delayedCall(1000, () => {
-                loadingText.destroy();
-                overlay.destroy();
-                this.showLobby(multiplayer, [], [], { destroy: () => {} });
-            });
-            
-        } catch (error) {
-            console.error('Auto rejoin error:', error);
-            loadingText.setText('❌ Connection failed\nReturning to menu...');
-            this.time.delayedCall(2000, () => {
-                window.location.reload();
-            });
-        }
     }
     
 }
