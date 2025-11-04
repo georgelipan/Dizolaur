@@ -1321,8 +1321,8 @@ export class Game extends BaseScene {
         // Create explosion effect at collision point
         this.createExplosionEffect(this.player.x, this.player.y);
         
-        // Don't stop background music - let it continue playing
-        // this.bgMusic.stop();
+        // Stop background music
+        this.bgMusic.stop();
         
         // Slight delay before transition
         this.time.delayedCall(400, () => {
@@ -1632,10 +1632,12 @@ export class Game extends BaseScene {
     shutdown() {
         console.log('🧹 SHUTDOWN: Aggressive cleanup started...');
         
-        // Don't stop music - let it continue playing in GameOver scene
-        // Just destroy jump sound
+        // Stop all sounds
+        if (this.bgMusic) {
+            this.bgMusic.stop();
+        }
         if (this.jumpSound) {
-            this.jumpSound.destroy();
+            // Don't destroy sounds - just leave them
         }
         
         // Clean up multiplayer event listeners when scene is destroyed
