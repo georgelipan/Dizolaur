@@ -543,9 +543,48 @@ export class Start extends Phaser.Scene {
         const playerNames = [multiplayer.playerName, ...players.map(p => p.name)];
         playersText.setText(playerNames.join('\n'));
 
+        // Start Now button (only show when ≥2 players)
+        const startNowBg = this.add.rectangle(640, 500, 200, 50, 0x00aa00, 0.9);
+        startNowBg.setStrokeStyle(3, 0x00ff00);
+        const startNowBtn = this.add.text(640, 500, '▶️ START NOW', {
+            fontSize: '24px',
+            fill: '#ffffff',
+            fontFamily: 'Arial',
+            fontStyle: 'bold'
+        }).setOrigin(0.5);
+
+        startNowBg.setInteractive({ useHandCursor: true });
+        startNowBtn.setInteractive({ useHandCursor: true });
+        
+        // Initially hide if less than 2 players
+        const updateStartButtonVisibility = () => {
+            const totalPlayers = Object.keys(multiplayer.remotePlayers).length + 1;
+            const shouldShow = totalPlayers >= 2;
+            startNowBg.setVisible(shouldShow);
+            startNowBtn.setVisible(shouldShow);
+        };
+        
+        updateStartButtonVisibility();
+
+        const handleStartNow = () => {
+            multiplayer.socket.emit('startGameNow');
+        };
+
+        startNowBg.on('pointerdown', handleStartNow);
+        startNowBtn.on('pointerdown', handleStartNow);
+        startNowBg.on('pointerover', () => {
+            startNowBg.setScale(1.05);
+            startNowBtn.setScale(1.05);
+        });
+        startNowBg.on('pointerout', () => {
+            startNowBg.setScale(1);
+            startNowBtn.setScale(1);
+        });
+
         // Listen for new players joining
         multiplayer.socket.on('lobbyJoined', (data) => {
             updatePlayersList(data);
+            updateStartButtonVisibility();
         });
 
         // Listen for players leaving
@@ -557,6 +596,7 @@ export class Start extends Phaser.Scene {
             const players = Object.values(multiplayer.remotePlayers);
             const playerNames = [multiplayer.playerName, ...players.map(p => p.name)];
             playersText.setText(playerNames.join('\n'));
+            updateStartButtonVisibility();
         });
 
         // Listen for countdown start
@@ -597,9 +637,9 @@ export class Start extends Phaser.Scene {
         });
 
         // Leave button
-        const leaveBg = this.add.rectangle(640, 560, 150, 45, 0xff0000, 0.8);
+        const leaveBg = this.add.rectangle(640, 570, 150, 45, 0xff0000, 0.8);
         leaveBg.setStrokeStyle(2, 0xffd700);
-        const leaveBtn = this.add.text(640, 560, '🚪 LEAVE', {
+        const leaveBtn = this.add.text(640, 570, '🚪 LEAVE', {
             fontSize: '20px',
             fill: '#ffffff',
             fontFamily: 'Arial',
