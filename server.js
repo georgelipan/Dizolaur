@@ -28,10 +28,10 @@ function generateRoomCode() {
 
 // Find or create an available lobby
 function findAvailableLobby() {
-    // Find a lobby that's not full and hasn't started
+    // Find a lobby that's not full, hasn't started, and hasn't ended
     for (const [roomCode, room] of Object.entries(rooms)) {
         const playerCount = Object.keys(room.players).length;
-        if (!room.gameStarted && playerCount < MAX_LOBBY_SIZE) {
+        if (!room.gameStarted && !room.gameEnded && playerCount < MAX_LOBBY_SIZE) {
             return roomCode;
         }
     }
@@ -41,6 +41,7 @@ function findAvailableLobby() {
     rooms[roomCode] = {
         players: {},
         gameStarted: false,
+        gameEnded: false,
         countdown: null,
         countdownStarted: false,
         obstaclesSeed: Math.random()
@@ -69,6 +70,12 @@ function startCountdown(roomCode) {
         if (timeLeft <= 0) {
             clearInterval(rooms[roomCode].countdown);
             rooms[roomCode].countdown = null;
+            
+            // Reset all players to alive state before starting
+            Object.keys(rooms[roomCode].players).forEach(playerId => {
+                rooms[roomCode].players[playerId].isAlive = true;
+                rooms[roomCode].players[playerId].score = 0;
+            });
             
             // Start the game
             rooms[roomCode].gameStarted = true;
@@ -148,6 +155,12 @@ io.on('connection', (socket) => {
             rooms[roomCode].countdown = null;
         }
         
+        // Reset all players to alive state before starting
+        Object.keys(rooms[roomCode].players).forEach(playerId => {
+            rooms[roomCode].players[playerId].isAlive = true;
+            rooms[roomCode].players[playerId].score = 0;
+        });
+        
         // Start the game immediately
         rooms[roomCode].gameStarted = true;
         io.to(roomCode).emit('gameStarted', {
@@ -213,21 +226,28 @@ io.on('connection', (socket) => {
             const winner = alivePlayers[0];
             console.log(`Game over in ${roomCode}. Winner: ${winner.name}`);
             
+            // Mark room as ended immediately to prevent reuse
+            rooms[roomCode].gameEnded = true;
+            
             io.to(roomCode).emit('gameEnded', {
                 winner: winner,
                 allPlayers: rooms[roomCode].players
             });
             
-            // Mark room for cleanup and delete immediately to prevent reuse
+            // Delete room after delay (players need time to see results)
             setTimeout(() => {
                 if (rooms[roomCode]) {
                     delete rooms[roomCode];
                     console.log(`Room ${roomCode} cleaned up`);
                 }
-            }, 5000); // Reduced to 5 seconds
+            }, 5000);
         } else if (alivePlayers.length === 0 && rooms[roomCode].gameStarted) {
             // All players died somehow
             console.log(`All players died in ${roomCode}`);
+            
+            // Mark room as ended immediately to prevent reuse
+            rooms[roomCode].gameEnded = true;
+            
             io.to(roomCode).emit('gameEnded', {
                 winner: null,
                 allPlayers: rooms[roomCode].players
