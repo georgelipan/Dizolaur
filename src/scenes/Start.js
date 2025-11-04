@@ -78,7 +78,7 @@ export class Start extends Phaser.Scene {
         }).setOrigin(0.5);
 
         // Version number in bottom-left corner
-        this.add.text(10, 710, 'v1.5', {
+        this.add.text(10, 710, 'v1.6', {
             fontSize: '14px',
             fill: '#000000',
             fontFamily: 'Arial',
@@ -641,7 +641,18 @@ export class Start extends Phaser.Scene {
             this.startMusic.stop();
             this.registry.set('isMultiplayer', true);
             this.registry.set('multiplayerManager', multiplayer);
-            this.scene.start('Game');
+            
+            // Force stop the Game scene if it exists, then start fresh
+            const gameScene = this.scene.get('Game');
+            if (gameScene) {
+                this.scene.stop('Game');
+                // Small delay to ensure scene is fully stopped before restarting
+                this.time.delayedCall(100, () => {
+                    this.scene.start('Game');
+                });
+            } else {
+                this.scene.start('Game');
+            }
         });
 
         // Leave button
