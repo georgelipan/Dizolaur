@@ -9,7 +9,8 @@ export class Start extends BaseScene {
     preload() {
         this.load.image('background', 'assets/background.png');
         this.load.image('coin', 'assets/coin.png');
-        
+        this.load.image('logo', 'assets/dizorun.png');
+
         // Load start page music
         this.load.audio('startMusic', 'assets/Sound effects/start_page.mp3');
     }
@@ -28,46 +29,32 @@ export class Start extends BaseScene {
         this.createFloatingCoins();
 
         // Top decorative banner
-        const topBanner = this.add.rectangle(640, 80, 1280, 120, 0x1a1a2e, 0.85);
-        const bannerBorder1 = this.add.rectangle(640, 30, 1200, 4, 0xffd700);
-        const bannerBorder2 = this.add.rectangle(640, 130, 1200, 4, 0xffd700);
+        // const topBanner = this.add.rectangle(640, 80, 1280, 120, 0x1a1a2e, 0.85);
+        // const bannerBorder1 = this.add.rectangle(640, 30, 1200, 4, 0xffd700);
+        // const bannerBorder2 = this.add.rectangle(640, 130, 1200, 4, 0xffd700);
 
         // Sparkling effect on borders
-        this.tweens.add({
-            targets: [bannerBorder1, bannerBorder2],
-            alpha: 0.5,
-            duration: 1000,
-            yoyo: true,
-            repeat: -1,
-            ease: 'Sine.inOut'
-        });
+        // this.tweens.add({
+        //     targets: [bannerBorder1, bannerBorder2],
+        //     alpha: 0.5,
+        //     duration: 1000,
+        //     yoyo: true,
+        //     repeat: -1,
+        //     ease: 'Sine.inOut'
+        // });
 
-        // Main title with better shadow effect
-        const titleShadow = this.add.text(645, 85, '💎 DIZOLAUR 💎', {
-            fontSize: '88px',
-            fill: '#000000',
-            fontFamily: 'Arial',
-            fontStyle: 'bold'
-        }).setOrigin(0.5).setAlpha(0.6);
-
-        const title = this.add.text(640, 80, '💎 DIZOLAUR 💎', {
-            fontSize: '88px',
-            fill: '#ffd700',
-            fontFamily: 'Arial',
-            fontStyle: 'bold',
-            stroke: '#ffffff',
-            strokeThickness: 4
-        }).setOrigin(0.5);
-
+        // Main title logo
+        const title = this.add.image(640, 160, 'logo').setOrigin(0.5);
+        title.setScale(1.8);
         // Subtitle with casino theme
-        const subtitle = this.add.text(640, 200, '★★★ PREMIUM RUNNER GAME ★★★', {
-            fontSize: '28px',
-            fill: '#ffd700',
-            fontFamily: 'Arial',
-            fontStyle: 'bold',
-            stroke: '#000000',
-            strokeThickness: 2
-        }).setOrigin(0.5);
+        // const subtitle = this.add.text(640, 200, '★★★ PREMIUM RUNNER GAME ★★★', {
+        //     fontSize: '28px',
+        //     fill: '#ffd700',
+        //     fontFamily: 'Arial',
+        //     fontStyle: 'bold',
+        //     stroke: '#000000',
+        //     strokeThickness: 2
+        // }).setOrigin(0.5);
 
         // Version number in bottom-left corner
         this.add.text(10, 710, 'v2.1', {
@@ -83,7 +70,7 @@ export class Start extends BaseScene {
         // Animated title glow
         this.tweens.add({
             targets: title,
-            scale: 1.03,
+            scale: 1.7,
             duration: 1200,
             ease: 'Sine.inOut',
             yoyo: true,
@@ -91,40 +78,40 @@ export class Start extends BaseScene {
         });
 
         // Feature highlights panel
-        const featuresPanel = this.add.rectangle(640, 320, 700, 150, 0x2a2a3e, 0.9);
-        featuresPanel.setStrokeStyle(3, 0xffd700);
+        // const featuresPanel = this.add.rectangle(640, 320, 700, 150, 0x2a2a3e, 0.9);
+        // featuresPanel.setStrokeStyle(3, 0xffd700);
 
         // Centered feature bullets
-        const feature1 = this.add.text(640, 280, '💰 Real Money Rewards', {
-            fontSize: '24px',
-            fill: '#00ff88',
-            fontFamily: 'Arial',
-            fontStyle: 'bold'
-        }).setOrigin(0.5);
+        // const feature1 = this.add.text(640, 280, '💰 Real Money Rewards', {
+        //     fontSize: '24px',
+        //     fill: '#00ff88',
+        //     fontFamily: 'Arial',
+        //     fontStyle: 'bold'
+        // }).setOrigin(0.5);
 
-        const feature2 = this.add.text(640, 320, '🎮 Skill-Based Gameplay', {
-            fontSize: '24px',
-            fill: '#00ff88',
-            fontFamily: 'Arial',
-            fontStyle: 'bold'
-        }).setOrigin(0.5);
+        // const feature2 = this.add.text(640, 320, '🎮 Skill-Based Gameplay', {
+        //     fontSize: '24px',
+        //     fill: '#00ff88',
+        //     fontFamily: 'Arial',
+        //     fontStyle: 'bold'
+        // }).setOrigin(0.5);
 
-        const feature3 = this.add.text(640, 360, '🏆 Compete with Players', {
-            fontSize: '24px',
-            fill: '#00ff88',
-            fontFamily: 'Arial',
-            fontStyle: 'bold'
-        }).setOrigin(0.5);
+        // const feature3 = this.add.text(640, 360, '🏆 Compete with Players', {
+        //     fontSize: '24px',
+        //     fill: '#00ff88',
+        //     fontFamily: 'Arial',
+        //     fontStyle: 'bold'
+        // }).setOrigin(0.5);
 
-        // Pulse animation for features
-        this.tweens.add({
-            targets: [feature1, feature2, feature3],
-            alpha: 0.85,
-            duration: 800,
-            yoyo: true,
-            repeat: -1,
-            ease: 'Sine.inOut'
-        });
+        // // Pulse animation for features
+        // this.tweens.add({
+        //     targets: [feature1, feature2, feature3],
+        //     alpha: 0.85,
+        //     duration: 800,
+        //     yoyo: true,
+        //     repeat: -1,
+        //     ease: 'Sine.inOut'
+        // });
 
         // Single Player button
         const singlePlayerBg = this.add.rectangle(640, 450, 380, 70, 0xff0000, 0.9);
@@ -237,7 +224,7 @@ export class Start extends BaseScene {
         }).setOrigin(0.5);
 
         // Decorative corner elements
-        this.createCornerDecorations();
+        // this.createCornerDecorations();
     }
 
     createFloatingCoins() {

@@ -134,7 +134,7 @@ export class Game extends BaseScene {
         this.isGameOver = false;
         this.score = 0;
         this.gameSpeed = 6;
-        this.groundY = 600;
+        this.groundY = this.cameras.main.height - 20; // Dynamic: bottom of screen minus small offset
         
         // Physics constants
         this.jumpPower = -15;
@@ -273,12 +273,12 @@ export class Game extends BaseScene {
     createPlayer() {
         const playerY = this.groundY - 24;
         this.player = this.add.sprite(200, playerY, 'player');
-        this.player.setScale(2.2);
+        this.player.setScale(3.2);
         
         // Set precise hitbox
-        this.player.setDisplaySize(24 * 2.2, 24 * 2.2);
-        this.player.hitboxWidth = 24 * 2.2 * 0.6;
-        this.player.hitboxHeight = 24 * 2.2 * 0.7;
+        this.player.setDisplaySize(24 * 3.2, 24 * 3.2);
+        this.player.hitboxWidth = 24 * 3.2 * 0.6;
+        this.player.hitboxHeight = 24 * 3.2 * 0.7;
         this.player.hitboxOffsetY = 2;
         
         // Visual effects
