@@ -386,6 +386,14 @@ export class GameOver extends BaseScene {
         this.background.tilePositionX += 1;
     }
 
+    shutdown() {
+        // Stop and clean up all sounds when leaving this scene
+        if (this.scoreSound) {
+            this.scoreSound.stop();
+            this.scoreSound.destroy();
+        }
+    }
+
     getHighScore() {
         const stored = localStorage.getItem('dizolaur_highscore');
         return stored ? parseFloat(stored) : 0;

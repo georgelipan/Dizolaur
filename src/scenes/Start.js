@@ -689,4 +689,11 @@ export class Start extends BaseScene {
         leaveBg.on('pointerout', () => leaveBg.setScale(1));
     }
     
+    shutdown() {
+        // Stop and clean up all sounds when leaving this scene
+        if (this.startMusic) {
+            this.startMusic.stop();
+        }
+    }
+    
 }
