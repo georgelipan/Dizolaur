@@ -1,5 +1,5 @@
 import { Server } from 'socket.io';
-import { createServer } from 'http';
+import { createServer, IncomingMessage, ServerResponse } from 'http';
 import { loadConfig } from './config/index.js';
 import { MatchManager } from './services/MatchManager.js';
 import { PlatformIntegration } from './services/PlatformIntegration.js';
@@ -18,8 +18,21 @@ async function main() {
   console.log(`   - Max Players: ${config.gameConfig.maxPlayers}`);
   console.log(`   - Tick Rate: ${config.gameConfig.tickRate}ms`);
 
-  // Create HTTP server
-  const httpServer = createServer();
+  // Create HTTP server with basic request handler for health checks
+  const httpServer = createServer((req: IncomingMessage, res: ServerResponse) => {
+    // Health check endpoint for Render
+    if (req.url === '/' || req.url === '/health') {
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ 
+        status: 'ok', 
+        service: 'Dino Game Backend',
+        timestamp: Date.now() 
+      }));
+    } else {
+      res.writeHead(404, { 'Content-Type': 'text/plain' });
+      res.end('Not Found');
+    }
+  });
 
   // Initialize Socket.IO
   const io = new Server(httpServer, {
