@@ -35,8 +35,6 @@ services:
   - type: web
     name: dizolaur-frontend
     env: static
-    region: frankfurt  # sau oregon pentru US
-    plan: free  # sau starter/standard pentru production
     rootDir: ui
     buildCommand: npm install && npm run build
     staticPublishPath: dist
