@@ -1,325 +1,367 @@
-# 💎 Dizolaur
+# 🦖 Multiplayer Dino Game - Full Stack
 
-**A premium 2D skill-based runner game with casino aesthetics, built for real-money competitive multiplayer.**
+Joc multiplayer skill-based tip "Chrome Dino" cu integrare pentru platforme de gambling. Arhitectură client-server cu comunicare în timp real.
 
-[📄 Google Docs Design Document](https://docs.google.com/document/d/1_kOpwrOfPp0BgnaTXn4q1uMJS-NrMBHL0xOE_cljx1o/edit?usp=sharing)
+## 📋 Arhitectură
 
----
+### Backend (Node.js + TypeScript + Socket.IO)
+- **Autoritar**: Serverul controlează toată fizica, coliziunile și scorul
+- **Real-time**: Socket.IO pentru sincronizare multiplayer
+- **Scalabil**: Design pentru multiple instanțe de server
+- **Integrare gambling**: API pentru platforme externe
 
-## 🎮 About the Game
+### Frontend (Phaser 3 + TypeScript + Socket.IO Client)
+- **Game Engine**: Phaser 3 pentru rendering 2D
+- **Real-time sync**: Socket.IO pentru comunicare cu serverul
+- **Client-side prediction**: Input buffering pentru latență redusă
+- **Responsive**: Funcționează pe desktop și mobile
 
-Dizolaur is a Chrome Dino-inspired endless runner with casino-themed premium visuals. Players control a character that runs automatically, jumping to avoid obstacles and land on platforms while collecting points. The game features:
+## 🚀 Quick Start - Rulare Locală
 
-- **Single-player mode** (currently implemented)
-- **Premium casino UI** with gold accents and smooth animations
-- **Precise hitbox system** for fair gameplay
-- **Progressive difficulty** that increases with score
-- **Visual effects** including particle systems, glows, and celebrations
-- **High score persistence** using localStorage
-- **Planned multiplayer** for competitive real-money matches
+### Prerequisite
+- Node.js v18+ (LTS)
+- npm v9+
 
----
+### Pașii pentru Rulare Completă
 
-## 🏗️ Project Structure
+#### 1. Pornește Backend-ul (Server)
+
+```bash
+# Terminal 1 - Backend
+cd backend
+
+# Instalează dependențele (dacă nu s-a făcut deja)
+npm install
+
+# Build TypeScript
+npm run build
+
+# Pornește serverul
+npm start
+```
+
+✅ Serverul va porni pe `http://localhost:3000`
+
+Vei vedea:
+```
+🦖 Dino Game Server starting...
+📝 Configuration loaded
+   - Port: 3000
+   - Max Players: 4
+   - Tick Rate: 16ms
+🔌 Socket.IO initialized
+⚙️  Services initialized
+🎮 Socket handlers registered
+🔄 Game loop started
+
+🚀 Server running on 0.0.0.0:3000
+   Socket.IO endpoint: ws://0.0.0.0:3000
+
+✅ Ready to accept connections!
+```
+
+#### 2. Pornește Frontend-ul (Client)
+
+```bash
+# Terminal 2 - Frontend
+cd ui
+
+# Instalează dependențele (dacă nu s-a făcut deja)
+npm install
+
+# Pornește development server
+npm run dev
+```
+
+✅ UI-ul va porni pe `http://localhost:5173`
+
+Browser-ul se va deschide automat cu jocul.
+
+#### 3. Testare Multiplayer
+
+Pentru a testa multiplayer local, deschide **2-4 tab-uri** în browser:
+
+1. **Tab 1**: `http://localhost:5173`
+2. **Tab 2**: `http://localhost:5173`
+3. **Tab 3** (opțional): `http://localhost:5173`
+4. **Tab 4** (opțional): `http://localhost:5173`
+
+În fiecare tab:
+1. Jocul se va conecta automat la server
+2. Apasă butonul **READY**
+3. Când toți jucătorii (minim 2) sunt ready, meciul începe!
+4. Controlează dino-ul cu **SPACE** sau **↑** (săritură)
+
+### 🎮 Controale
+
+- **SPACE** sau **↑ (Up Arrow)**: Sari
+- **↓ (Down Arrow)**: Ghemuit (duck) - în timpul săriturii
+
+### 🎯 Regulile Jocului
+
+1. **Obiectiv**: Evită obstacolele cât mai mult timp posibil
+2. **Obstacole**: Cactuși (jos) și păsări (sus)
+3. **Scor**: Crește automat în timp + bonus pentru obstacole evitate
+4. **Eliminare**: Lovirea unui obstacol te elimină
+5. **Câștigător**: Ultimul jucător rămas sau cel cu cel mai mare scor
+
+## 📂 Structura Proiectului
 
 ```
 Dizolaur/
-├── index.html              # Entry point, loads Phaser and main.js
-├── phaser.js              # Phaser 3.88.2 framework (bundled, no CDN)
-├── project.config         # Editor metadata
-├── README.md              # This file
-├── .vscode/
-│   └── launch.json        # Chrome debugging configuration
-├── .github/
-│   └── copilot-instructions.md  # AI coding agent instructions
-├── assets/                # Game assets
-│   ├── background.png
-│   ├── coin.png
-│   ├── obstacle.png / obstacleV3.png
-│   ├── platform.png
-│   ├── player.png         # Spritesheet (24×24, 3 frames)
-│   ├── tilesV2.png        # Ground tiles
-│   └── Sound effects/
-│       ├── combined_slot_machine_mix.mp3
-│       ├── game_background.mp3
-│       ├── jump.mp3
-│       └── start_page.mp3
-└── src/                   # Source code (ES6 modules)
-    ├── main.js            # Game configuration & scene registration
-    └── scenes/
-        ├── Start.js       # Main menu / landing page
-        ├── Game.js        # Main gameplay scene
-        └── GameOver.js    # End screen with score animation
+├── backend/                 # Server-ul de joc
+│   ├── src/
+│   │   ├── config/         # Configurare
+│   │   ├── handlers/       # Socket.IO handlers
+│   │   ├── models/         # Player, Match, Obstacle
+│   │   ├── services/       # MatchManager, PhysicsEngine
+│   │   ├── types/          # TypeScript types
+│   │   ├── utils/          # Helper functions
+│   │   └── server.ts       # Entry point
+│   ├── dist/               # Build output
+│   ├── package.json
+│   └── tsconfig.json
+│
+├── ui/                     # Frontend-ul jocului
+│   ├── src/
+│   │   ├── scenes/         # Phaser scenes
+│   │   ├── services/       # Network, Session
+│   │   ├── utils/          # Game objects
+│   │   ├── types/          # TypeScript types
+│   │   └── main.ts         # Entry point
+│   ├── public/
+│   ├── index.html
+│   ├── package.json
+│   └── vite.config.ts
+│
+└── README.md              # Acest fișier
 ```
 
----
+## 🔧 Configurare Avansată
 
-## 🚀 Getting Started
+### Backend - Variabile de Mediu
 
-### Prerequisites
+Creează fișier `.env` în folderul `backend/`:
 
-- **Python 3.x** (for local HTTP server)
-  - OR **Node.js** (alternative: `npx http-server`)
-- Modern web browser (Chrome, Firefox, Edge)
+```env
+# Server
+PORT=3000
+HOST=0.0.0.0
 
-### Running Locally
+# CORS
+CORS_ORIGINS=http://localhost:5173,http://localhost:3000
 
-1. **Start HTTP Server** (from project root):
-   ```bash
-   python -m http.server 8000
-   ```
-   *Why HTTP server?* ES6 modules require HTTP protocol; `file://` won't work.
+# Platform Integration
+PLATFORM_CALLBACK_URL=https://your-platform.com/api/results
+PLATFORM_API_KEY=your-secret-key
 
-2. **Open in Browser**:
-   ```
-   http://localhost:8000
-   ```
+# Game Config
+MAX_PLAYERS=4
+GRAVITY=800
+JUMP_VELOCITY=400
+DINO_SPEED=200
+OBSTACLE_SPAWN_RATE=2000
+TICK_RATE=16
+```
 
-3. **Clear Cache After Changes**:
-   - Press `Ctrl + Shift + R` (Windows/Linux) or `Cmd + Shift + R` (Mac)
-   - Or: Open DevTools → Network tab → Check "Disable cache"
+### Frontend - URL Parameters
 
-### Debugging in VS Code
+Jocul acceptă parametri din URL:
 
-1. Ensure HTTP server is running (`python -m http.server 8000`)
-2. Press `F5` or go to Run & Debug
-3. Select "Launch Chrome" configuration
-4. Game opens in Chrome with debugging enabled
+```
+http://localhost:5173?token=abc123&bet=50&currency=EUR
+```
 
----
+- `token`: Token de autentificare (obligatoriu în producție)
+- `bet`: Suma pariată (default: 10)
+- `currency`: Moneda (default: USD)
 
-## 🎯 Game Mechanics
+## 🧪 Development
 
-### Controls
-- **Space Bar** or **Mouse Click** - Jump
-- **D Key** - Toggle debug hitboxes (development only)
+### Backend Development
 
-### Gameplay
-- **Objective**: Survive as long as possible, avoid obstacles, use platforms strategically
-- **Scoring**: +0.1 points per frame (≈6 points/second)
-- **Speed Multiplier**: Increases every 100 points
-- **Obstacles**: Red-tinted hazards on the ground (instant game over on collision)
-- **Platforms**: Golden floating platforms (1-3 merged together)
-  - Land on top to continue jumping
-  - Hit from below = head collision (stops upward movement)
-  - Fall off edges = start falling
+```bash
+cd backend
 
-### Physics Parameters
+# Watch mode (recompilare automată)
+npm run watch
+
+# În alt terminal
+npm start
+```
+
+### Frontend Development
+
+```bash
+cd ui
+
+# Development mode cu hot reload
+npm run dev
+```
+
+### Build pentru Producție
+
+```bash
+# Backend
+cd backend
+npm run build
+npm start
+
+# Frontend
+cd ui
+npm run build
+npm run preview
+```
+
+## 🐛 Debugging
+
+### Backend Logs
+
+Serverul loghează în consolă:
+- Conexiuni/deconexiuni clienți
+- Creare/ștergere meciuri
+- Evenimente importante
+
+### Frontend Debug
+
+Deschide Developer Console (F12):
+
 ```javascript
-jumpPower: -15       // Initial jump velocity
-gravity: 0.6         // Acceleration downward
-gameSpeed: 6         // Base scrolling speed (increases over time)
-groundY: 600        // Ground level position
-platformHeight: 100  // Fixed platform height above ground
+// Vezi game instance
+window.game
+
+// Vezi toate scene-urile
+window.game.scene.getScenes()
+
+// Vezi session data
+window.game.registry.get('gameSession')
+
+// Vezi network service
+window.game.registry.get('networkService')
 ```
 
----
+## 🔌 Socket.IO Protocol
 
-## 🛠️ Technical Architecture
+### Client → Server
 
-### Framework
-- **Phaser 3.88.2** (game engine, bundled locally)
-- **Vanilla JavaScript** (ES6 modules)
-- **No build step** - runs directly in browser
+- `authenticate`: `{ token: string }`
+- `player_ready`: (no data)
+- `player_input`: `{ playerId, timestamp, action, sequenceNumber }`
 
-### Scene Flow
-```
-Start → Game → GameOver
-  ↑      ↓         ↓
-  └──────┴─────────┘
-```
+### Server → Client
 
-### Game.js Structure (Refactored)
-The main game scene is organized into 10 logical sections:
+- `authenticated`: `{ playerId, matchId, matchState, players }`
+- `player_joined/left`: `{ playerId, playerCount }`
+- `match_starting`: `{ matchId, startTime, config }`
+- `game_update`: `{ timestamp, tick, players[], obstacles[] }` (60 FPS)
+- `match_ended`: `{ matchId, winnerId, players[], winnings }`
 
-1. **Scene Lifecycle** - `preload()`, `create()`, `update()`
-2. **Initialization** - Asset loading, state setup
-3. **Background & Visuals** - Clouds, stars, decorations
-4. **Player Controls** - Jump mechanics
-5. **Particle Effects** - Jump dust, sparkles, explosions
-6. **Update Loop** - Physics, scoring, spawning
-7. **Spawning** - Obstacles, platforms, birds
-8. **Collision Detection** - Precise hitbox system
-9. **UI Creation** - Score, speed, title panels
-10. **Game Over & Celebrations** - Milestones, explosions
+## 📊 Arhitectura Tehnică
 
-### Hitbox System
-Custom hitbox dimensions for pixel-perfect collision:
+### Backend Stack
+- Runtime: Node.js
+- Language: TypeScript
+- Transport: Socket.IO (WebSocket)
+- Persistence: In-memory
+- Architecture: Authoritative server
 
-| Element   | Visual Size | Hitbox Size | Notes |
-|-----------|-------------|-------------|-------|
-| Player    | 100%        | 60% width, 70% height | Forgiving on sides |
-| Obstacles | 100%        | 65% width, 75% height | Fair collision |
-| Platforms | 100%        | 95% width, 30% height | Top surface only |
+### Frontend Stack
+- Game Engine: Phaser 3
+- Language: TypeScript
+- Networking: Socket.IO Client
+- Build Tool: Vite
+- Bundler: Rollup (via Vite)
 
----
+## 🎨 Features
 
-## 🎨 Visual Features
+### ✅ Implementate
 
-### Premium UI Elements
-- Gold borders with pulsing glow animation
-- Dark overlay with vignette effect
-- Score panel with shadow text
-- Speed multiplier indicator
-- Corner accent decorations
+- ✅ Autentificare cu token
+- ✅ Multiplayer lobby (2-4 jucători)
+- ✅ Real-time game synchronization
+- ✅ Authoritative server (anti-cheat)
+- ✅ Collision detection
+- ✅ Score tracking
+- ✅ Match results și winnings calculation
+- ✅ Reconnection handling
+- ✅ Multiple simultaneous matches
 
-### Particle Systems
-- **Jump Dust**: Gold particles on takeoff
-- **Player Trail**: Green fading circles
-- **Random Sparkles**: Ambient gold sparkles
-- **Explosion**: Red burst on collision (20 particles)
-- **Milestone Fireworks**: Gold particles every 100 points
-- **Minor Celebrations**: Green burst every 50 points
+### 🔜 Viitor (Opțional)
 
-### Environmental Decorations
-- 5 slow-moving clouds (40-60s cycles)
-- 15 twinkling stars with pulse animation
-- Flying birds with flapping wings and bobbing motion
-- Ground shadow for depth effect
+- ⏳ Sprite animations și assets grafice
+- ⏳ Sound effects și muzică
+- ⏳ Power-ups și items
+- ⏳ Different game modes
+- ⏳ Leaderboards
+- ⏳ Replay system
+- ⏳ Mobile touch controls optimizați
+- ⏳ Full client-side prediction și reconciliation
 
----
+## 🤝 Integrare cu Platforma de Gambling
 
-## 🔊 Audio
+### Flow de Integrare
 
-| Sound | File | Usage |
-|-------|------|-------|
-| Jump | `jump.mp3` | Player jump action |
-| Background | `game_background.mp3` | Loops during gameplay (0.5 volume) |
-| Start Page | `start_page.mp3` | Loops on main menu |
-| Score Reveal | `combined_slot_machine_mix.mp3` | Game over screen |
+1. **Platform** generează token JWT/HMAC cu:
+   - User ID
+   - Bet amount
+   - Currency
+   - Expiration
 
----
+2. **Platform** deschide iframe cu:
+   ```html
+   <iframe src="https://game.example.com?token=...&bet=50&currency=USD"></iframe>
+   ```
 
-## 💾 Data Persistence
+3. **Game** autentifică tokenul cu backend-ul
+4. **Backend** validează tokenul cu platforma
+5. **Game** rulează meciul
+6. **Backend** trimite rezultatele la platform via HTTP callback
 
-### localStorage Keys
-- `dizolaur_highscore` - Stores best score (integer)
+### Callback Format
 
-### Saving High Score
-```javascript
-// Automatically saved in GameOver scene
-if (finalScore > currentHighScore) {
-    localStorage.setItem('dizolaur_highscore', finalScore);
+```json
+POST /api/game-results
+{
+  "type": "match_result",
+  "data": {
+    "matchId": "match_123",
+    "players": [{
+      "platformUserId": "user_456",
+      "winnings": 95.00,
+      "ranking": 1
+    }]
+  }
 }
 ```
 
----
+## 📝 Licență
 
-## 🐛 Known Issues & Solutions
+ISC
 
-### ✅ Resolved Issues
-- Hitbox larger than visual object
-- Player falling through platforms
-- Impossible obstacle/platform combinations
+## 🆘 Troubleshooting
 
-### 🔄 Current Considerations
-- **Milestone flash**: Quick flash effect at 100-point intervals (subtle, non-blocking)
-- **Platform difficulty**: Fixed height ensures consistent gameplay
-- **Performance**: All particles auto-destroy to prevent memory leaks
+### "Connection failed" în UI
 
----
+✅ Verifică că backend-ul rulează pe `http://localhost:3000`
+✅ Verifică console-ul pentru erori CORS
+✅ Verifică că portul 3000 nu este blocat de firewall
 
-## 🎯 Roadmap
+### "Authentication failed"
 
-### ✅ Completed (Phase 1 - Single Player)
-- [x] Core runner mechanics (jump, physics, scrolling)
-- [x] Obstacle spawning with collision detection
-- [x] Platform system (landing, head collision, edge fall)
-- [x] Score tracking with high score persistence
-- [x] Premium casino UI design
-- [x] Visual effects and particle systems
-- [x] Sound effects and background music
-- [x] Precise hitbox system
-- [x] Code refactoring for maintainability
+✅ Backend-ul are o verificare mock - ar trebui să funcționeze
+✅ Verifică console-ul backend pentru erori
 
-### 🚧 In Progress (Phase 2 - Multiplayer)
-- [ ] **Architecture Design**: Choose backend (Socket.io / Colyseus / Firebase)
-- [ ] **Server Development**: WebSocket server, room management, state sync
-- [ ] **Client Integration**: Multiplayer sync, ghost players, disconnect handling
-- [ ] **Leaderboard**: Live rankings, match results, player statistics
+### Jocul nu pornește când toți sunt "READY"
 
-### 📋 Planned Features
-- Real-money betting system
-- Match lobbies and matchmaking
-- Replay system
-- Power-ups and collectibles
-- Additional obstacle types
-- More platform patterns
-- Mobile responsive controls
+✅ Trebuie minim **2 jucători** ready
+✅ Verifică logs în backend pentru erori
+
+### Performance issues
+
+✅ Închide tab-uri nefolosite
+✅ Verifică CPU/memory usage
+✅ Reduce tick rate în configurare
 
 ---
 
-## 👥 Development Team
-
-### Getting Started as a New Developer
-
-1. **Read this README** thoroughly
-2. **Check `.github/copilot-instructions.md`** for coding guidelines
-3. **Run the game locally** and play a few rounds
-4. **Press 'D' in-game** to see debug hitboxes
-5. **Read `Game.js` structure** (well-commented sections)
-6. **Check browser console** for Phaser logs and errors
-
-### Code Conventions
-
-- **ES6 modules**: Always include `.js` extension in imports
-  ```javascript
-  import { Start } from './scenes/Start.js';  // ✅ Correct
-  import { Start } from './scenes/Start';     // ❌ Wrong
-  ```
-
-- **Scene lifecycle**: Use `preload()` → `create()` → `update()` pattern
-  ```javascript
-  preload() { /* Load assets */ }
-  create()  { /* Initialize game objects */ }
-  update()  { /* Run every frame */ }
-  ```
-
-- **Asset paths**: Relative to project root
-  ```javascript
-  this.load.image('sprite', 'assets/sprite.png');  // ✅
-  ```
-
-- **Method organization**: Group related methods with section headers
-  ```javascript
-  // ============================================================================
-  // SECTION NAME
-  // ============================================================================
-  ```
-
-### Testing Changes
-
-1. Make code changes
-2. Save files
-3. Refresh browser with `Ctrl + Shift + R`
-4. Check console for errors
-5. Test gameplay thoroughly
-6. Verify hitboxes with 'D' key if needed
-
----
-
-## 📚 Resources
-
-- [Phaser 3 Documentation](https://photonstorm.github.io/phaser3-docs/)
-- [Phaser 3 Examples](https://phaser.io/examples)
-- [ES6 Modules Guide](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Guide/Modules)
-- [Project Design Document](https://docs.google.com/document/d/1_kOpwrOfPp0BgnaTXn4q1uMJS-NrMBHL0xOE_cljx1o/edit?usp=sharing)
-
----
-
-## 📝 License
-
-*Add license information here*
-
----
-
-## 🤝 Contributing
-
-1. Create a feature branch
-2. Make changes following code conventions
-3. Test thoroughly (including cache refresh)
-4. Submit pull request with detailed description
-
----
-
-**Built with ❤️ and Phaser 3**
+**Enjoy the game! 🦖🎮**

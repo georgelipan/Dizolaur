@@ -1,0 +1,23 @@
+{
+  "name": "backend",
+  "version": "1.0.0",
+  "description": "Multiplayer Skill-Based Dino Game - Backend",
+  "main": "dist/server.js",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc && node dist/server.js",
+    "start": "node dist/server.js",
+    "watch": "tsc -w"
+  },
+  "keywords": ["game", "multiplayer", "socket.io", "dino"],
+  "author": "",
+  "license": "ISC",
+  "type": "module",
+  "dependencies": {
+    "socket.io": "^4.7.5"
+  },
+  "devDependencies": {
+    "@types/node": "^20.14.0",
+    "typescript": "^5.9.3"
+  }
+}
