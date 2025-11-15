@@ -2,6 +2,24 @@
 
 Joc multiplayer skill-based tip "Chrome Dino" cu integrare pentru platforme de gambling. Arhitectură client-server cu comunicare în timp real.
 
+## 🚀 Deploy pe Render.com
+
+**Gata pentru production!** Proiectul este configurat complet pentru deploy pe Render.com cu servicii separate.
+
+📖 **Ghiduri de Deployment:**
+- **[DEPLOY_CHECKLIST.md](./DEPLOY_CHECKLIST.md)** - Lista rapidă cu pașii de urmat ✅
+- **[RENDER_DEPLOY.md](./RENDER_DEPLOY.md)** - Ghid complet și detaliat 📚
+- **[ARCHITECTURE.md](./ARCHITECTURE.md)** - Arhitectura și flow-ul aplicației 🏗️
+
+**Quick Deploy:**
+1. Push pe GitHub: `git push origin main`
+2. Deploy Backend pe Render (Web Service)
+3. Deploy Frontend pe Render (Static Site)
+4. Actualizează CORS pe backend
+5. **DONE!** 🎉
+
+---
+
 ## 📋 Arhitectură
 
 ### Backend (Node.js + TypeScript + Socket.IO)

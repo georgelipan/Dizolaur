@@ -9,6 +9,10 @@
     "preview": "vite preview",
     "typecheck": "tsc --noEmit"
   },
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=9.0.0"
+  },
   "dependencies": {
     "phaser": "^3.80.1",
     "socket.io-client": "^4.7.5"

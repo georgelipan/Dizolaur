@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import { config as appConfig } from './config';
 import { BootScene } from './scenes/BootScene';
 import { WaitingScene } from './scenes/WaitingScene';
 import { GameScene } from './scenes/GameScene';
@@ -36,9 +37,12 @@ game.events.once('ready', () => {
   }
 });
 
-// Log game version
+// Log game version and configuration
 console.log('🦖 Dino Game UI v1.0.0');
 console.log('Phaser Version:', Phaser.VERSION);
+console.log('📝 Configuration:');
+console.log(`   - Backend URL: ${appConfig.backendUrl}`);
+console.log(`   - Debug Mode: ${appConfig.debugMode}`);
 
 // Export for debugging
 (window as any).game = game;

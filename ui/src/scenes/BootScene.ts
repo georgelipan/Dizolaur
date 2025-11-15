@@ -12,7 +12,7 @@ export class BootScene extends Phaser.Scene {
 
   init() {
     // Initialize services
-    this.networkService = new NetworkService('http://localhost:3000');
+    this.networkService = new NetworkService();
     this.gameSession = GameSession.getInstance();
 
     // Store in registry for access from other scenes

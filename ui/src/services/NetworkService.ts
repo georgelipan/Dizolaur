@@ -1,4 +1,5 @@
 import { io, Socket } from 'socket.io-client';
+import { config } from '../config';
 import type {
   GameSnapshot,
   MatchResult,
@@ -18,8 +19,9 @@ export class NetworkService {
   private isConnected = false;
   private eventHandlers: Map<string, EventCallback<any>[]> = new Map();
 
-  constructor(serverUrl: string = 'http://localhost:3000') {
-    this.serverUrl = serverUrl;
+  constructor(serverUrl?: string) {
+    this.serverUrl = serverUrl || config.backendUrl;
+    console.log(`🔌 NetworkService initialized with URL: ${this.serverUrl}`);
   }
 
   public connect(): Promise<void> {
