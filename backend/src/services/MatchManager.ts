@@ -59,10 +59,17 @@ export class MatchManager {
       return null;
     }
 
-    // Check if player already exists in match (reconnection)
+    // Check if player is already in ANOTHER match
+    const existingMatchId = this.playerToMatch.get(session.playerId);
+    if (existingMatchId && existingMatchId !== matchId) {
+      console.warn(`Player ${session.playerId} already in match ${existingMatchId}, removing from old match`);
+      this.removePlayerFromMatch(session.playerId);
+    }
+
+    // Check if player already exists in THIS match (reconnection)
     const existingPlayer = match.getPlayer(session.playerId);
     if (existingPlayer) {
-      // Player reconnecting - update socket ID
+      // Player reconnecting - update socket ID (this also reconnects if disconnected)
       existingPlayer.updateSocketId(socketId);
       console.log(`Player ${existingPlayer.id} reconnected to match ${matchId}`);
       return existingPlayer;

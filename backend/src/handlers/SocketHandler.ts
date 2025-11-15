@@ -2,7 +2,7 @@ import type { Server, Socket } from 'socket.io';
 import { MatchManager } from '../services/MatchManager.js';
 import { PlatformIntegration } from '../services/PlatformIntegration.js';
 import type { PlayerInput, PlayerSession } from '../types/index.js';
-import { MatchState } from '../types/index.js';
+import { MatchState, PlayerState } from '../types/index.js';
 
 export class SocketHandler {
   private io: Server;
@@ -72,6 +72,14 @@ export class SocketHandler {
           socket.emit('auth_error', { message: 'Failed to join match' });
           socket.disconnect();
           return;
+        }
+
+        // Clean up any old socket mapping for this player (reconnection scenario)
+        for (const [oldSocketId, playerId] of this.socketToPlayer.entries()) {
+          if (playerId === player.id && oldSocketId !== socket.id) {
+            this.socketToPlayer.delete(oldSocketId);
+            console.log(`Cleaned up old socket ${oldSocketId} for player ${player.id}`);
+          }
         }
 
         // Map socket to player
@@ -219,7 +227,7 @@ export class SocketHandler {
         return;
       }
 
-      console.log(`Player ${playerId} disconnected`);
+      console.log(`Player ${playerId} disconnected (socket: ${socket.id})`);
 
       const match = this.matchManager.getMatchForPlayer(playerId);
       if (match) {
@@ -234,14 +242,34 @@ export class SocketHandler {
           );
         }
 
-        // Remove player from match
+        // Remove player from match (behavior depends on match state)
         this.matchManager.removePlayerFromMatch(playerId);
+
+        // Get updated player count (after removal)
+        const remainingPlayers = Array.from(match.players.values()).filter(
+          (p) => p.state !== 'DISCONNECTED'
+        ).length;
 
         // Notify other players
         this.io.to(match.id).emit('player_left', {
           playerId,
-          playerCount: match.players.size,
+          playerCount: remainingPlayers,
+          matchState: match.state,
         });
+
+        // If in WAITING state and all players left, cancel ready states
+        if (match.state === MatchState.WAITING && remainingPlayers > 0 && remainingPlayers < 2) {
+          // Reset all players to CONNECTED if we don't have enough for a match
+          for (const p of match.players.values()) {
+            if (p.state === PlayerState.READY) {
+              p.state = PlayerState.CONNECTED;
+            }
+          }
+          this.io.to(match.id).emit('match_cancelled', {
+            reason: 'Not enough players',
+            playerCount: remainingPlayers,
+          });
+        }
       }
 
       this.socketToPlayer.delete(socket.id);

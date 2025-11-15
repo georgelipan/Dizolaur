@@ -41,8 +41,18 @@ export class Match {
 
   public removePlayer(playerId: string): void {
     const player = this.players.get(playerId);
-    if (player) {
+    if (!player) {
+      return;
+    }
+
+    // If match hasn't started or is finished, fully remove player
+    if (this.state === MatchState.WAITING || this.state === MatchState.FINISHED) {
+      this.players.delete(playerId);
+      console.log(`Player ${playerId} removed from match ${this.id}`);
+    } else {
+      // During active match, mark as disconnected but keep in game
       player.disconnect();
+      console.log(`Player ${playerId} disconnected from active match ${this.id}`);
     }
   }
 
@@ -54,15 +64,23 @@ export class Match {
     if (this.state !== MatchState.WAITING) {
       return false;
     }
-    // Need at least 2 players, all players must be ready
-    if (this.players.size < 2) {
+    
+    // Count only connected/ready players (not disconnected)
+    const connectedPlayers = Array.from(this.players.values()).filter(
+      (p) => p.state !== 'DISCONNECTED'
+    );
+    
+    // Need at least 2 connected players, all must be ready
+    if (connectedPlayers.length < 2) {
       return false;
     }
-    for (const player of this.players.values()) {
+    
+    for (const player of connectedPlayers) {
       if (player.state !== 'READY') {
         return false;
       }
     }
+    
     return true;
   }
 
