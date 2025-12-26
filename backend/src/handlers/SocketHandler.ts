@@ -257,8 +257,8 @@ export class SocketHandler {
           matchState: match.state,
         });
 
-        // If in WAITING state and all players left, cancel ready states
-        if (match.state === MatchState.WAITING && remainingPlayers > 0 && remainingPlayers < 2) {
+        // If in WAITING state and not enough players, cancel ready states
+        if (match.state === MatchState.WAITING && remainingPlayers > 0 && remainingPlayers < match.config.minPlayers) {
           // Reset all players to CONNECTED if we don't have enough for a match
           for (const p of match.players.values()) {
             if (p.state === PlayerState.READY) {

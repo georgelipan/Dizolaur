@@ -17,6 +17,7 @@ export const defaultServerConfig: ServerConfig = {
   platformApiKey: process.env['PLATFORM_API_KEY'],
   gameConfig: {
     maxPlayers: parseInt(process.env['MAX_PLAYERS'] ?? '4', 10),
+    minPlayers: parseInt(process.env['MIN_PLAYERS'] ?? '1', 10),
     gravity: parseFloat(process.env['GRAVITY'] ?? '800'),
     jumpVelocity: parseFloat(process.env['JUMP_VELOCITY'] ?? '400'),
     dinoSpeed: parseFloat(process.env['DINO_SPEED'] ?? '200'),

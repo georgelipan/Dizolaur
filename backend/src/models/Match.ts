@@ -64,23 +64,23 @@ export class Match {
     if (this.state !== MatchState.WAITING) {
       return false;
     }
-    
+
     // Count only connected/ready players (not disconnected)
     const connectedPlayers = Array.from(this.players.values()).filter(
       (p) => p.state !== 'DISCONNECTED'
     );
-    
-    // Need at least 2 connected players, all must be ready
-    if (connectedPlayers.length < 2) {
-      return false;
+
+    // Need at least minPlayers connected players, all must be ready
+    if (connectedPlayers.length < this.config.minPlayers) {
+       return false;
     }
-    
+
     for (const player of connectedPlayers) {
       if (player.state !== 'READY') {
         return false;
       }
     }
-    
+
     return true;
   }
 

@@ -21,6 +21,7 @@ export interface PlayerSession {
 
 export interface GameConfig {
   maxPlayers: number;
+  minPlayers: number;
   gravity: number;
   jumpVelocity: number;
   dinoSpeed: number;

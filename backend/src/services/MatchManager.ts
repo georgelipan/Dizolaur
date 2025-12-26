@@ -17,15 +17,22 @@ export class MatchManager {
     this.matchIdCounter = 0;
     this.physicsEngine = new PhysicsEngine();
 
-    this.defaultConfig = {
-      maxPlayers: 4,
-      gravity: 800, // pixels per second squared
-      jumpVelocity: 400, // pixels per second
-      dinoSpeed: 200, // pixels per second
-      obstacleSpawnRate: 2000, // ms between spawns
-      tickRate: 16, // ~60 FPS
-      ...config,
-    };
+    // Config comes from loadConfig() in server.ts which reads from .env
+    // These hardcoded values are only fallbacks if no config is provided
+    if (config) {
+      this.defaultConfig = config as GameConfig;
+    } else {
+      // Fallback defaults (should rarely be used - config always comes from .env)
+      this.defaultConfig = {
+        maxPlayers: 4,
+        minPlayers: 1,
+        gravity: 800,
+        jumpVelocity: 400,
+        dinoSpeed: 200,
+        obstacleSpawnRate: 2000,
+        tickRate: 16,
+      };
+    }
   }
 
   public createMatch(config?: Partial<GameConfig>): Match {
