@@ -4,7 +4,8 @@
       "Bash(dir:*)",
       "Bash(npm install:*)",
       "Bash(npm run build:*)",
-      "Bash(npm run typecheck:*)"
+      "Bash(npm run typecheck:*)",
+      "Bash(winget install:*)"
     ],
     "deny": [],
     "ask": []
