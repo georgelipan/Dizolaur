@@ -16,9 +16,22 @@ export class PhysicsEngine {
       return;
     }
 
-    // Validate timestamp and sequence number to prevent replay attacks
+    // Validate sequence number to prevent replay attacks
     if (input.sequenceNumber <= player.lastInputSequence) {
       return; // Old or duplicate input
+    }
+
+    // Rate limiting — reject if player sends inputs too fast
+    if (!player.checkRateLimit()) {
+      console.warn(`[Anti-Cheat] Rate limit exceeded for player ${player.id}`);
+      return;
+    }
+
+    // Validate timestamp — reject inputs with impossible timing
+    const timeDiff = Date.now() - input.timestamp;
+    if (timeDiff > 5000 || timeDiff < -1000) {
+      console.warn(`[Anti-Cheat] Invalid timestamp from player ${player.id}: drift=${timeDiff}ms`);
+      return;
     }
 
     player.lastInputSequence = input.sequenceNumber;
@@ -31,7 +44,16 @@ export class PhysicsEngine {
       case 'duck':
         player.duck();
         break;
+      case 'unduck':
+        player.unduck();
+        break;
     }
+
+    match.logEvent('player_input', {
+      playerId: player.id,
+      action: input.action,
+      seq: input.sequenceNumber,
+    });
   }
 
   public updateMatch(match: Match): void {

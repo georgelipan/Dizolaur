@@ -11,7 +11,13 @@ export class Player {
   public score: number;
   public betData: PlayerSession['betData'];
   public isGrounded: boolean;
+  public isDucking: boolean;
   public lastInputSequence: number;
+  public disconnectedAt: number | null;
+
+  // Rate limiting
+  private inputTimestamps: number[];
+  private static readonly MAX_INPUTS_PER_SECOND = 15;
 
   constructor(session: PlayerSession, socketId: string) {
     this.id = session.playerId;
@@ -23,7 +29,22 @@ export class Player {
     this.score = 0;
     this.betData = session.betData;
     this.isGrounded = true;
+    this.isDucking = false;
     this.lastInputSequence = 0;
+    this.disconnectedAt = null;
+    this.inputTimestamps = [];
+  }
+
+  /** Returns false if player is sending inputs too fast */
+  public checkRateLimit(): boolean {
+    const now = Date.now();
+    // Remove timestamps older than 1 second
+    this.inputTimestamps = this.inputTimestamps.filter(t => now - t < 1000);
+    if (this.inputTimestamps.length >= Player.MAX_INPUTS_PER_SECOND) {
+      return false;
+    }
+    this.inputTimestamps.push(now);
+    return true;
   }
 
   public jump(jumpVelocity: number): void {
@@ -34,10 +55,16 @@ export class Player {
   }
 
   public duck(): void {
-    // Duck implementation - could modify hitbox or apply downward force
-    if (this.state === PlayerState.PLAYING && !this.isGrounded) {
-      this.velocity.y = -Math.abs(this.velocity.y) * 2; // Fast fall
+    if (this.state !== PlayerState.PLAYING) return;
+    this.isDucking = true;
+    // Fast fall when in air
+    if (!this.isGrounded) {
+      this.velocity.y = -Math.abs(this.velocity.y) * 2;
     }
+  }
+
+  public unduck(): void {
+    this.isDucking = false;
   }
 
   public updatePosition(deltaTime: number, gravity: number): void {
@@ -55,6 +82,7 @@ export class Player {
       this.position.y = 0;
       this.velocity.y = 0;
       this.isGrounded = true;
+      this.isDucking = false; // Reset duck on landing
     }
   }
 
@@ -80,10 +108,12 @@ export class Player {
 
   public disconnect(): void {
     this.state = PlayerState.DISCONNECTED;
+    this.disconnectedAt = Date.now();
   }
 
   public updateSocketId(newSocketId: string): void {
     this.socketId = newSocketId;
+    this.disconnectedAt = null;
     // If player was disconnected, reconnect them
     if (this.state === PlayerState.DISCONNECTED) {
       this.state = PlayerState.CONNECTED;

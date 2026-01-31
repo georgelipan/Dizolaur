@@ -2,13 +2,13 @@
   "name": "dizolaur-multiplayer",
   "version": "1.0.0",
   "description": "Multiplayer server for Dizolaur game",
-  "main": "server.js",
+  "main": "backend/dist/server.js",
   "engines": {
     "node": ">=18.0.0"
   },
   "scripts": {
-    "start": "node server.js",
-    "dev": "node server.js"
+    "start": "cd backend && npm start",
+    "dev": "cd backend && npm run dev"
   },
   "dependencies": {
     "cors": "^2.8.5",

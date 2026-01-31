@@ -11,9 +11,16 @@ export class BootScene extends Phaser.Scene {
   }
 
   init() {
-    // Initialize services
-    this.networkService = new NetworkService('http://localhost:3000');
     this.gameSession = GameSession.getInstance();
+
+    // Disconnect old network service if it exists (Play Again flow)
+    const existingNetwork: NetworkService | undefined = this.registry.get('networkService');
+    if (existingNetwork) {
+      existingNetwork.disconnect();
+    }
+
+    // Create fresh network service
+    this.networkService = new NetworkService('http://localhost:3000');
 
     // Store in registry for access from other scenes
     this.registry.set('networkService', this.networkService);
@@ -37,7 +44,7 @@ export class BootScene extends Phaser.Scene {
       // Connect to server
       await this.networkService.connect();
 
-      // Authenticate with token
+      // Authenticate with token (same token = same player = proper reconnection)
       const token = this.gameSession.getToken();
       this.networkService.authenticate(token);
 

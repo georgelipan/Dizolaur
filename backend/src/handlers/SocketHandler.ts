@@ -9,6 +9,7 @@ export class SocketHandler {
   private matchManager: MatchManager;
   private platformIntegration: PlatformIntegration;
   private socketToPlayer: Map<string, string>; // socketId -> playerId
+  private broadcastIntervals: Map<string, ReturnType<typeof setInterval>>; // matchId -> interval
 
   constructor(
     io: Server,
@@ -19,17 +20,26 @@ export class SocketHandler {
     this.matchManager = matchManager;
     this.platformIntegration = platformIntegration;
     this.socketToPlayer = new Map();
+    this.broadcastIntervals = new Map();
   }
 
   public initialize(): void {
     this.io.on('connection', (socket) => {
       console.log(`Client connected: ${socket.id}`);
 
+      // Clean up old sockets for same player (prevents duplicates)
+      this.cleanupOldSockets(socket);
+
       this.handleAuthentication(socket);
       this.handlePlayerReady(socket);
       this.handlePlayerInput(socket);
       this.handleDisconnect(socket);
     });
+  }
+
+  /** Remove stale socket mappings if the same player reconnects */
+  private cleanupOldSockets(_socket: Socket): void {
+    // Cleanup happens during authentication once we know the playerId
   }
 
   private handleAuthentication(socket: Socket): void {
@@ -55,10 +65,16 @@ export class SocketHandler {
           timestamp: Date.now(),
         };
 
+        // Clean up player from any old/finished matches before finding a new one
+        const oldMatch = this.matchManager.getMatchForPlayer(playerSession.playerId);
+        if (oldMatch && (oldMatch.state === 'FINISHED' || oldMatch.state === 'WAITING')) {
+          this.matchManager.removePlayerFromMatch(playerSession.playerId);
+        }
+
         // Find or create a match
         const match = this.matchManager.findOrCreateMatch();
 
-        // Check if this is a reconnection
+        // Check if this is a reconnection (player still in an active match)
         const isReconnecting = match.getPlayer(playerSession.playerId) !== undefined;
 
         // Add player to match (or reconnect if exists)
@@ -72,6 +88,13 @@ export class SocketHandler {
           socket.emit('auth_error', { message: 'Failed to join match' });
           socket.disconnect();
           return;
+        }
+
+        // Clean up old socket mappings for same player (prevents duplicates)
+        for (const [oldSocketId, mappedPlayerId] of this.socketToPlayer.entries()) {
+          if (mappedPlayerId === player.id && oldSocketId !== socket.id) {
+            this.socketToPlayer.delete(oldSocketId);
+          }
         }
 
         // Map socket to player
@@ -152,27 +175,35 @@ export class SocketHandler {
     }
 
     // Notify all players that match is starting
+    // Include seed commitment for provable fairness (players can verify after match)
     this.io.to(matchId).emit('match_starting', {
       matchId,
       startTime: match.startTime,
       config: match.config,
+      seedCommitment: match.seedCommitment,
     });
 
-    // Start game loop for this match
-    this.startGameLoop(matchId);
+    // Start broadcasting game state to clients
+    this.startBroadcastLoop(matchId);
   }
 
-  private startGameLoop(matchId: string): void {
+  /**
+   * Starts broadcasting game state to clients.
+   * NOTE: Physics updates happen in the global game loop (server.ts).
+   * This only handles snapshot broadcasting and match-end detection.
+   */
+  private startBroadcastLoop(matchId: string): void {
     const match = this.matchManager.getMatch(matchId);
     if (!match) {
       return;
     }
 
     const tickInterval = match.config.tickRate;
-    const gameLoop = setInterval(() => {
+    const broadcastLoop = setInterval(() => {
       const currentMatch = this.matchManager.getMatch(matchId);
       if (!currentMatch || currentMatch.state !== MatchState.IN_PROGRESS) {
-        clearInterval(gameLoop);
+        clearInterval(broadcastLoop);
+        this.broadcastIntervals.delete(matchId);
 
         // Handle match end
         if (currentMatch?.state === MatchState.FINISHED) {
@@ -181,12 +212,12 @@ export class SocketHandler {
         return;
       }
 
-      // Get game snapshot
+      // Broadcast game snapshot to all players in the match
       const snapshot = currentMatch.getSnapshot();
-
-      // Broadcast to all players in the match
       this.io.to(matchId).emit('game_update', snapshot);
     }, tickInterval);
+
+    this.broadcastIntervals.set(matchId, broadcastLoop);
   }
 
   private handlePlayerInput(socket: Socket): void {
@@ -234,14 +265,17 @@ export class SocketHandler {
           );
         }
 
-        // Remove player from match
-        this.matchManager.removePlayerFromMatch(playerId);
-
-        // Notify other players
+        // Notify other players BEFORE removal (so playerCount is accurate)
+        const newCount = match.players.size - 1;
         this.io.to(match.id).emit('player_left', {
           playerId,
-          playerCount: match.players.size,
+          playerCount: newCount,
+          matchState: match.state,
         });
+
+        // Remove player from match
+        // NOTE: removePlayer() keeps player in Map during IN_PROGRESS (for reconnection)
+        this.matchManager.removePlayerFromMatch(playerId);
       }
 
       this.socketToPlayer.delete(socket.id);

@@ -26,6 +26,7 @@ export interface GameConfig {
   dinoSpeed: number;
   obstacleSpawnRate: number;
   tickRate: number; // Fixed timestep in ms (e.g., 16ms = ~60 FPS)
+  devMode: boolean; // Allow single-player testing
 }
 
 export enum MatchState {
@@ -46,7 +47,7 @@ export enum PlayerState {
 export interface PlayerInput {
   playerId: string;
   timestamp: number;
-  action: 'jump' | 'duck';
+  action: 'jump' | 'duck' | 'unduck';
   sequenceNumber: number;
 }
 

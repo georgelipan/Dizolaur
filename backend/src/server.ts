@@ -1,5 +1,5 @@
 import { Server } from 'socket.io';
-import { createServer } from 'http';
+import { createServer, type IncomingMessage, type ServerResponse } from 'http';
 import { loadConfig } from './config/index.js';
 import { MatchManager } from './services/MatchManager.js';
 import { PlatformIntegration } from './services/PlatformIntegration.js';
@@ -17,9 +17,24 @@ async function main() {
   console.log(`   - Port: ${config.port}`);
   console.log(`   - Max Players: ${config.gameConfig.maxPlayers}`);
   console.log(`   - Tick Rate: ${config.gameConfig.tickRate}ms`);
+  if (config.gameConfig.devMode) {
+    console.log(`   - DEV MODE: Single-player testing enabled`);
+  }
 
-  // Create HTTP server
-  const httpServer = createServer();
+  // Create HTTP server with health check endpoint
+  const httpServer = createServer((req: IncomingMessage, res: ServerResponse) => {
+    if (req.url === '/' || req.url === '/health') {
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({
+        status: 'ok',
+        uptime: process.uptime(),
+        timestamp: Date.now(),
+      }));
+    } else {
+      res.writeHead(404);
+      res.end();
+    }
+  });
 
   // Initialize Socket.IO
   const io = new Server(httpServer, {

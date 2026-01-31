@@ -12,7 +12,7 @@ export interface ServerConfig {
 export const defaultServerConfig: ServerConfig = {
   port: parseInt(process.env['PORT'] ?? '3000', 10),
   host: process.env['HOST'] ?? '0.0.0.0',
-  corsOrigins: process.env['CORS_ORIGINS']?.split(',') ?? ['*'],
+  corsOrigins: process.env['CORS_ORIGINS']?.split(',') ?? ['http://localhost:5173', 'http://localhost:3000'],
   platformCallbackUrl: process.env['PLATFORM_CALLBACK_URL'],
   platformApiKey: process.env['PLATFORM_API_KEY'],
   gameConfig: {
@@ -22,6 +22,7 @@ export const defaultServerConfig: ServerConfig = {
     dinoSpeed: parseFloat(process.env['DINO_SPEED'] ?? '200'),
     obstacleSpawnRate: parseInt(process.env['OBSTACLE_SPAWN_RATE'] ?? '2000', 10),
     tickRate: parseInt(process.env['TICK_RATE'] ?? '16', 10),
+    devMode: process.env['DEV_MODE'] === 'true' || process.env['NODE_ENV'] !== 'production',
   },
 };
 

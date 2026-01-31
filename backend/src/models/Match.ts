@@ -2,6 +2,7 @@ import type { GameConfig, GameSnapshot } from '../types/index.js';
 import { MatchState } from '../types/index.js';
 import { Player } from './Player.js';
 import { Obstacle } from './Obstacle.js';
+import { SeededRNG, generateMatchSeed, generateSeedCommitment } from '../utils/hash.js';
 
 export class Match {
   public id: string;
@@ -14,6 +15,9 @@ export class Match {
   public currentTick: number;
   public lastTickTime: number;
   private obstacleIdCounter: number;
+  public rng: SeededRNG;
+  public seedCommitment: string; // Hash of seed — shared before match starts (provable fairness)
+  public auditLog: Array<{ tick: number; event: string; data: unknown }>;
 
   constructor(id: string, config: GameConfig) {
     this.id = id;
@@ -26,6 +30,10 @@ export class Match {
     this.currentTick = 0;
     this.lastTickTime = Date.now();
     this.obstacleIdCounter = 0;
+    const seed = generateMatchSeed();
+    this.rng = new SeededRNG(seed);
+    this.seedCommitment = generateSeedCommitment(seed);
+    this.auditLog = [];
   }
 
   public addPlayer(player: Player): boolean {
@@ -41,9 +49,17 @@ export class Match {
 
   public removePlayer(playerId: string): void {
     const player = this.players.get(playerId);
-    if (player) {
+    if (!player) return;
+
+    if (this.state === MatchState.WAITING || this.state === MatchState.FINISHED) {
+      // Safe to fully remove — game not in progress
+      this.players.delete(playerId);
+    } else {
+      // Match in progress — mark disconnected but keep state for reconnection
       player.disconnect();
     }
+
+    this.logEvent('player_removed', { playerId, matchState: this.state });
   }
 
   public getPlayer(playerId: string): Player | undefined {
@@ -54,8 +70,9 @@ export class Match {
     if (this.state !== MatchState.WAITING) {
       return false;
     }
-    // Need at least 2 players, all players must be ready
-    if (this.players.size < 2) {
+    // Dev mode: allow single player; production: minimum 2
+    const minPlayers = this.config.devMode ? 1 : 2;
+    if (this.players.size < minPlayers) {
       return false;
     }
     for (const player of this.players.values()) {
@@ -80,6 +97,11 @@ export class Match {
       player.position = { x: 50, y: 0 }; // Starting position
       player.velocity = { x: 0, y: 0 };
     }
+
+    this.logEvent('match_started', {
+      players: Array.from(this.players.keys()),
+      seedCommitment: this.seedCommitment,
+    });
   }
 
   public update(currentTime: number): void {
@@ -95,8 +117,8 @@ export class Match {
     for (const player of this.players.values()) {
       if (player.state === 'PLAYING') {
         player.updatePosition(deltaTime, this.config.gravity);
-        // Increment score based on time survived
-        player.incrementScore(1);
+        // Increment score proportional to time survived (normalized to ~60 per second)
+        player.incrementScore(deltaTime * 60);
       }
     }
 
@@ -119,13 +141,13 @@ export class Match {
     const spawnX = 800; // Right edge of screen
     const speed = this.config.dinoSpeed;
 
-    // Randomly spawn either cactus or bird
-    const obstacle =
-      Math.random() > 0.5
-        ? Obstacle.createCactus(obstacleId, spawnX, speed)
-        : Obstacle.createBird(obstacleId, spawnX, 100, speed); // Birds at height 100
+    // Use seeded RNG — deterministic, auditable, same for all players
+    const obstacle = this.rng.nextBool(0.5)
+      ? Obstacle.createCactus(obstacleId, spawnX, speed)
+      : Obstacle.createBird(obstacleId, spawnX, 100, speed);
 
     this.obstacles.set(obstacleId, obstacle);
+    this.logEvent('obstacle_spawned', { obstacleId, type: obstacle.type });
   }
 
   private checkMatchEnd(): void {
@@ -137,8 +159,10 @@ export class Match {
       }
     }
 
-    // Match ends when 0 or 1 players remain
-    if (activePlayers <= 1) {
+    // Dev mode (solo): end when 0 players remain
+    // Production (multiplayer): end when 0 or 1 players remain
+    const threshold = this.config.devMode ? 0 : 1;
+    if (activePlayers <= threshold) {
       this.end();
     }
   }
@@ -149,6 +173,14 @@ export class Match {
     }
     this.state = MatchState.FINISHED;
     this.endTime = Date.now();
+
+    this.logEvent('match_ended', {
+      scores: Array.from(this.players.values()).map(p => ({
+        playerId: p.id,
+        score: p.score,
+        state: p.state,
+      })),
+    });
   }
 
   public getWinner(): Player | null {
@@ -186,5 +218,22 @@ export class Match {
 
   public isFull(): boolean {
     return this.players.size >= this.config.maxPlayers;
+  }
+
+  /** Append an entry to the audit log for this match */
+  public logEvent(event: string, data: unknown): void {
+    this.auditLog.push({ tick: this.currentTick, event, data });
+  }
+
+  /** Get the full audit trail (for post-match verification) */
+  public getAuditTrail() {
+    return {
+      matchId: this.id,
+      seed: this.rng.seed,
+      seedCommitment: this.seedCommitment,
+      startTime: this.startTime,
+      endTime: this.endTime,
+      events: this.auditLog,
+    };
   }
 }

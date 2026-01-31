@@ -24,6 +24,7 @@ export class MatchManager {
       dinoSpeed: 200, // pixels per second
       obstacleSpawnRate: 2000, // ms between spawns
       tickRate: 16, // ~60 FPS
+      devMode: false,
       ...config,
     };
   }
