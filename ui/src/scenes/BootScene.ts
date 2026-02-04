@@ -1,10 +1,15 @@
 import Phaser from 'phaser';
 import { NetworkService } from '../services/NetworkService';
 import { GameSession } from '../services/GameSession';
+import type { AuthenticatedData } from '../types';
+
+const AUTH_TIMEOUT_MS = 10000;
 
 export class BootScene extends Phaser.Scene {
   private networkService!: NetworkService;
   private gameSession!: GameSession;
+  private onAuthenticated!: (data: AuthenticatedData) => void;
+  private onAuthError!: (data: { message: string }) => void;
 
   constructor() {
     super({ key: 'BootScene' });
@@ -19,8 +24,8 @@ export class BootScene extends Phaser.Scene {
       existingNetwork.disconnect();
     }
 
-    // Create fresh network service
-    this.networkService = new NetworkService('http://localhost:3000');
+    // Create fresh network service (URL from env or fallback)
+    this.networkService = new NetworkService();
 
     // Store in registry for access from other scenes
     this.registry.set('networkService', this.networkService);
@@ -28,7 +33,6 @@ export class BootScene extends Phaser.Scene {
   }
 
   async create() {
-    // Show loading text
     const loadingText = this.add.text(
       this.cameras.main.centerX,
       this.cameras.main.centerY,
@@ -41,32 +45,63 @@ export class BootScene extends Phaser.Scene {
     loadingText.setOrigin(0.5);
 
     try {
-      // Connect to server
-      await this.networkService.connect();
-
-      // Authenticate with token (same token = same player = proper reconnection)
       const token = this.gameSession.getToken();
+
+      // Connect with token in auth handshake
+      await this.networkService.connect(token);
+
+      // Authenticate
       this.networkService.authenticate(token);
 
-      // Wait for authentication response
-      this.networkService.on<any>('authenticated', (data: any) => {
-        console.log('✅ Authenticated:', data);
+      // Auth timeout
+      const authTimeout = this.time.delayedCall(AUTH_TIMEOUT_MS, () => {
+        loadingText.setText('Authentication timed out. Please refresh.');
+        this.cleanupListeners();
+      });
+
+      // Store handler references for cleanup
+      this.onAuthenticated = (data: AuthenticatedData) => {
+        authTimeout.destroy();
         this.gameSession.setPlayerId(data.playerId);
         this.gameSession.setMatchId(data.matchId);
         this.gameSession.setMatchState(data.matchState);
         this.gameSession.setPlayerCount(data.players.length);
 
-        // Move to waiting scene
-        this.scene.start('WaitingScene');
-      });
+        // Use server-provided bet/currency if available
+        if (data.betAmount != null) {
+          this.gameSession.setBetAmount(data.betAmount);
+        }
+        if (data.currency) {
+          this.gameSession.setCurrency(data.currency);
+        }
 
-      this.networkService.on<any>('auth_error', (data: any) => {
-        console.error('❌ Authentication failed:', data.message);
-        loadingText.setText('Authentication failed: ' + data.message);
-      });
-    } catch (error) {
-      console.error('❌ Connection failed:', error);
+        this.cleanupListeners();
+        this.scene.start('WaitingScene');
+      };
+
+      this.onAuthError = (_data: { message: string }) => {
+        authTimeout.destroy();
+        loadingText.setText('Authentication failed. Please try again.');
+        this.cleanupListeners();
+      };
+
+      this.networkService.on('authenticated', this.onAuthenticated);
+      this.networkService.on('auth_error', this.onAuthError);
+    } catch {
       loadingText.setText('Failed to connect to server');
     }
+  }
+
+  private cleanupListeners(): void {
+    if (this.onAuthenticated) {
+      this.networkService.off('authenticated', this.onAuthenticated);
+    }
+    if (this.onAuthError) {
+      this.networkService.off('auth_error', this.onAuthError);
+    }
+  }
+
+  shutdown() {
+    this.cleanupListeners();
   }
 }

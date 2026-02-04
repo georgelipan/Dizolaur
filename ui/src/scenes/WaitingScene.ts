@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import type { NetworkService } from '../services/NetworkService';
 import type { GameSession } from '../services/GameSession';
+import type { PlayerJoinedData, PlayerLeftData, PlayerReadyData, MatchStartingData } from '../types';
 
 export class WaitingScene extends Phaser.Scene {
   private networkService!: NetworkService;
@@ -11,12 +12,18 @@ export class WaitingScene extends Phaser.Scene {
   private readyButtonText!: Phaser.GameObjects.Text;
   private isReady = false;
 
+  // Store handler references for cleanup
+  private onPlayerJoined!: (data: PlayerJoinedData) => void;
+  private onPlayerLeft!: (data: PlayerLeftData) => void;
+  private onPlayerReady!: (data: PlayerReadyData) => void;
+  private onMatchStarting!: (data: MatchStartingData) => void;
+
   constructor() {
     super({ key: 'WaitingScene' });
   }
 
   create() {
-    // Get services from registry
+    this.isReady = false;
     this.networkService = this.registry.get('networkService');
     this.gameSession = this.registry.get('gameSession');
 
@@ -83,36 +90,39 @@ export class WaitingScene extends Phaser.Scene {
       this.readyButton.setFillStyle(this.isReady ? 0x666666 : 0x00aa00);
     });
 
-    // Network event listeners
-    this.networkService.on<any>('player_joined', (data: any) => {
-      console.log('Player joined:', data.playerId);
+    // Define handlers with stored references
+    this.onPlayerJoined = (data: PlayerJoinedData) => {
       this.gameSession.setPlayerCount(data.playerCount);
       this.updatePlayerCount();
-    });
+    };
 
-    this.networkService.on<any>('player_left', (data: any) => {
-      console.log('Player left:', data.playerId);
+    this.onPlayerLeft = (data: PlayerLeftData) => {
       this.gameSession.setPlayerCount(data.playerCount);
       this.updatePlayerCount();
-    });
+    };
 
-    this.networkService.on<any>('player_ready', (data: any) => {
-      console.log('Player ready:', data.playerId);
+    this.onPlayerReady = (data: PlayerReadyData) => {
       if (data.playerId === this.gameSession.getPlayerId()) {
         this.statusText.setText('You are ready! Waiting for others...');
       }
-    });
+    };
 
-    this.networkService.on<any>('match_starting', (data: any) => {
-      console.log('Match starting:', data);
+    this.onMatchStarting = (data: MatchStartingData) => {
       this.gameSession.setGameConfig(data.config);
       this.statusText.setText('Match starting!');
 
-      // Transition to game scene
       this.time.delayedCall(1000, () => {
         this.scene.start('GameScene');
       });
-    });
+    };
+
+    this.networkService.on('player_joined', this.onPlayerJoined);
+    this.networkService.on('player_left', this.onPlayerLeft);
+    this.networkService.on('player_ready', this.onPlayerReady);
+    this.networkService.on('match_starting', this.onMatchStarting);
+
+    // Register shutdown for cleanup
+    this.events.once('shutdown', this.shutdown, this);
   }
 
   private setReady(): void {
@@ -121,12 +131,19 @@ export class WaitingScene extends Phaser.Scene {
     this.readyButtonText.setText('WAITING...');
     this.readyButton.disableInteractive();
 
-    // Send ready signal to server
     this.networkService.setPlayerReady();
   }
 
   private updatePlayerCount(): void {
     const count = this.gameSession.getPlayerCount();
-    this.playerCountText.setText(`Players: ${count}/4`);
+    const maxPlayers = this.gameSession.getGameConfig()?.maxPlayers || 4;
+    this.playerCountText.setText(`Players: ${count}/${maxPlayers}`);
+  }
+
+  shutdown() {
+    this.networkService.off('player_joined', this.onPlayerJoined);
+    this.networkService.off('player_left', this.onPlayerLeft);
+    this.networkService.off('player_ready', this.onPlayerReady);
+    this.networkService.off('match_starting', this.onMatchStarting);
   }
 }
