@@ -4,7 +4,7 @@ import { ENV } from './env.js';
 const {
   PORT, HOST, CORS_ORIGINS, PLATFORM_CALLBACK_URL, PLATFORM_API_KEY,
   NODE_ENV, MAX_PLAYERS, GRAVITY, JUMP_VELOCITY, RUNNER_SPEED,
-  OBSTACLE_SPAWN_RATE, TICK_RATE, DEV_MODE,
+  OBSTACLE_SPAWN_RATE, TICK_RATE, DEV_MODE, HITBOX_FORGIVENESS,
   WORLD_WIDTH, WORLD_HEIGHT, GROUND_Y,
   PLAYER_WIDTH, PLAYER_HEIGHT, PLAYER_START_X, PLAYER_START_Y,
   GROUND_SMALL_WIDTH, GROUND_SMALL_HEIGHT, GROUND_TALL_WIDTH, GROUND_TALL_HEIGHT,
@@ -38,6 +38,7 @@ export const defaultServerConfig: ServerConfig = {
     obstacleSpawnRate: parseInt(process.env[OBSTACLE_SPAWN_RATE] ?? '2000', 10),
     tickRate: parseInt(process.env[TICK_RATE] ?? '16', 10),
     devMode: process.env[DEV_MODE] === 'true' || process.env[NODE_ENV] !== 'production',
+    hitboxForgiveness: parseFloat(process.env[HITBOX_FORGIVENESS] ?? '0.8'),
 
     // World dimensions
     worldWidth: parseInt(process.env[WORLD_WIDTH] ?? '800', 10),

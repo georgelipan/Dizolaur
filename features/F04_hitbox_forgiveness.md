@@ -47,7 +47,7 @@ Cand sprite-ul vizual se suprapune putin cu obstacolul dar jucatorul nu moare, c
 Niciuna — se poate implementa independent.
 
 ## Validare
-- [ ] Collision box e 80% din vizual pe ambele axe
-- [ ] Player sprite se suprapune vizual cu obstacol fara sa moara (20% overlap)
-- [ ] Forgiveness e configurabila prin env var
-- [ ] Testare cu diferite valori (0.7, 0.8, 0.9)
+- [x] Collision box e 80% din vizual pe ambele axe
+- [x] Player sprite se suprapune vizual cu obstacol fara sa moara (20% overlap)
+- [x] Forgiveness e configurabila prin env var
+- [x] Testare cu diferite valori (0.7, 0.8, 0.9)
