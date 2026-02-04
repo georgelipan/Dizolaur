@@ -62,8 +62,8 @@ Secventele de obstacole creeaza gameplay mai interesant: jump-duck-jump cere ski
 - F02 (New Obstacles) — tipurile de obstacole
 
 ## Validare
-- [ ] In Phase 1 apar doar single cactus
-- [ ] In Phase 3+ apar combinatii
-- [ ] Niciun pattern nu produce secventa imposibila
-- [ ] Gap-urile se scaleaza cu viteza
-- [ ] Pattern selection foloseste SeededRNG (provable fairness)
+- [x] In Phase 1 apar doar single cactus
+- [x] In Phase 3+ apar combinatii
+- [x] Niciun pattern nu produce secventa imposibila
+- [x] Gap-urile se scaleaza cu viteza
+- [x] Pattern selection foloseste SeededRNG (provable fairness)

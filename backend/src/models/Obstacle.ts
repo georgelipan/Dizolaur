@@ -17,6 +17,7 @@ export class Obstacle {
   public velocity: Vector2D;
   public passed: boolean;
   public sineParams?: SineParams | undefined;
+  public pattern?: string | undefined;
   public spawnTime: number;
 
   constructor(
@@ -66,13 +67,24 @@ export class Obstacle {
   }
 
   public getSnapshot() {
-    return {
+    const snapshot: {
+      id: string;
+      position: { x: number; y: number };
+      width: number;
+      height: number;
+      type: ObstacleType;
+      pattern?: string;
+    } = {
       id: this.id,
       position: { ...this.position },
       width: this.width,
       height: this.height,
       type: this.type,
     };
+    if (this.pattern) {
+      snapshot.pattern = this.pattern;
+    }
+    return snapshot;
   }
 
   // --- Factory methods ---

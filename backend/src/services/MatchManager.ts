@@ -25,6 +25,7 @@ export class MatchManager {
       obstacleSpawnRate: 2000, // ms between spawns
       tickRate: 16, // ~60 FPS
       devMode: false,
+      hitboxForgiveness: 0.8,
 
       // World dimensions
       worldWidth: 800,
@@ -171,10 +172,14 @@ export class MatchManager {
         return;
       }
 
-      match.spawnObstacle();
+      const patternSize = match.spawnPattern();
 
       // Recalculate interval based on current difficulty phase
-      const interval = match.getSpawnInterval(match.getElapsedSeconds());
+      // Scale by pattern size so multi-obstacle patterns get extra breathing room
+      // Also enforce a minimum interval so obstacles never stack on screen
+      const baseInterval = match.getSpawnInterval(match.getElapsedSeconds());
+      const scaledInterval = baseInterval * (1 + (patternSize - 1) * 0.75);
+      const interval = Math.max(scaledInterval, 1800);
       setTimeout(scheduleNext, interval);
     };
 
