@@ -5,12 +5,19 @@ export interface Vector2D {
   y: number;
 }
 
+export interface NearMissEvent {
+  tick: number;
+  margin: number;
+  level: 'close' | 'insane' | 'pixel_perfect';
+}
+
 export interface PlayerSnapshot {
   playerId: string;
   position: Vector2D;
   velocity: Vector2D;
   state: PlayerState;
   score: number;
+  nearMisses?: NearMissEvent[];
 }
 
 export interface ObstacleSnapshot {
@@ -24,6 +31,8 @@ export interface ObstacleSnapshot {
 export interface GameSnapshot {
   timestamp: number;
   tick: number;
+  phase: number;
+  speed: number;
   players: PlayerSnapshot[];
   obstacles: ObstacleSnapshot[];
 }

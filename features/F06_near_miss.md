@@ -43,7 +43,7 @@ if (margin < 8) {
 - F04 (Hitbox Forgiveness) — near-miss-urile depind de collision box-ul redus
 
 ## Validare
-- [ ] Near-miss detectat corect sub 8px, 5px, 3px
-- [ ] Text indicator apare pe ecran
-- [ ] Bonus puncte acordate
-- [ ] Frecventa: ~3-5 pe meci tipic
+- [x] Near-miss detectat corect sub 20px, 12px, 6px
+- [x] Text indicator apare pe ecran (centrat)
+- [x] Bonus puncte acordate (+5/+15/+30)
+- [x] Frecventa: ~3-5 pe meci tipic

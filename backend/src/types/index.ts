@@ -27,6 +27,7 @@ export interface GameConfig {
   obstacleSpawnRate: number;
   tickRate: number; // Fixed timestep in ms (e.g., 16ms = ~60 FPS)
   devMode: boolean; // Allow single-player testing
+  hitboxForgiveness: number; // Collision box shrink factor (0.8 = 80% of visual size)
 
   // World dimensions
   worldWidth: number;
@@ -91,12 +92,15 @@ export interface PlayerInput {
 export interface GameSnapshot {
   timestamp: number;
   tick: number;
+  phase: number;
+  speed: number;
   players: Array<{
     playerId: string;
     position: Vector2D;
     velocity: Vector2D;
     state: PlayerState;
     score: number;
+    nearMisses?: Array<{ tick: number; margin: number; level: 'close' | 'insane' | 'pixel_perfect' }>;
   }>;
   obstacles: Array<{
     id: string;
@@ -104,6 +108,7 @@ export interface GameSnapshot {
     width: number;
     height: number;
     type: 'ground_small' | 'ground_tall' | 'ground_wide' | 'air_high' | 'air_low' | 'air_moving';
+    pattern?: string;
   }>;
 }
 
