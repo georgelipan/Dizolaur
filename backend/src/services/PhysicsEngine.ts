@@ -33,7 +33,7 @@ export class PhysicsEngine {
     // Process input action
     switch (input.action) {
       case 'jump':
-        player.jump(match.config.jumpVelocity);
+        player.jump(match.config.jumpVelocity, match.currentTick);
         break;
       case 'duck':
         player.duck();
@@ -65,15 +65,28 @@ export class PhysicsEngine {
     for (const player of match.getActivePlayers()) {
       for (const obstacle of match.obstacles.values()) {
         // Check collision
-        if (collisionDetector.checkCollision(player, obstacle)) {
+        if (collisionDetector.checkCollision(player, obstacle, match.currentTick)) {
           player.eliminate();
           console.log(`Player ${player.id} eliminated by collision`);
         }
 
-        // Check if player passed obstacle (for bonus scoring)
+        // Track vertical clearance each tick for near-miss detection
+        if (!obstacle.passed) {
+          collisionDetector.trackNearMissMargin(player, obstacle);
+        }
+
+        // Check if player passed obstacle (for bonus scoring + near-miss detection)
         if (collisionDetector.checkObstaclePassed(player, obstacle)) {
           obstacle.passed = true;
           player.incrementScore(10); // Bonus points for passing obstacle
+
+          // Near-miss detection: use the tracked minimum margin
+          const margin = player.obstacleMinMargins.get(obstacle.id);
+          if (margin !== undefined && margin > 0 && margin < 20) {
+            player.recordNearMiss(margin, match.currentTick);
+          }
+          // Clean up tracking for this obstacle
+          player.obstacleMinMargins.delete(obstacle.id);
         }
       }
     }

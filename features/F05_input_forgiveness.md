@@ -47,7 +47,7 @@ Pe mobil si cu latenta de retea, jucatorul adesea apasa jump "aproape la timp". 
 - F04 (Hitbox Forgiveness) — complementar, dar poate fi implementat independent
 
 ## Validare
-- [ ] Jump buffer: apasa jump in aer, aterizare + salt automat
-- [ ] Late-jump grace: overlap < 6px + jump = supravietuire
-- [ ] Overlap >= 6px = moarte normala (nu se exploateaza)
-- [ ] Testare cu latenta simulata (100ms, 200ms)
+- [x] Jump buffer: apasa jump in aer, aterizare + salt automat
+- [x] Late-jump grace: overlap < 6px + jump = supravietuire
+- [x] Overlap >= 6px = moarte normala (nu se exploateaza)
+- [x] Testare cu latenta simulata (100ms, 200ms)

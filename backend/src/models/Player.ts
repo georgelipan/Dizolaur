@@ -15,6 +15,16 @@ export class Player {
   public lastInputSequence: number;
   public disconnectedAt: number | null;
 
+  // Jump buffer: stores a jump request while airborne, executes on landing
+  public bufferedJump: boolean;
+  // Late-jump grace: tick when last jump input was received
+  public lastJumpInputTick: number;
+
+  // Near-miss events (cleared after each snapshot is sent)
+  public pendingNearMisses: Array<{ tick: number; margin: number; level: 'close' | 'insane' | 'pixel_perfect' }>;
+  // Tracks minimum vertical clearance per obstacle while horizontally near
+  public obstacleMinMargins: Map<string, number>;
+
   // Rate limiting
   private inputTimestamps: number[];
   private static readonly MAX_INPUTS_PER_SECOND = 15;
@@ -32,6 +42,10 @@ export class Player {
     this.isDucking = false;
     this.lastInputSequence = 0;
     this.disconnectedAt = null;
+    this.bufferedJump = false;
+    this.lastJumpInputTick = -999;
+    this.pendingNearMisses = [];
+    this.obstacleMinMargins = new Map();
     this.inputTimestamps = [];
   }
 
@@ -47,10 +61,15 @@ export class Player {
     return true;
   }
 
-  public jump(jumpVelocity: number): void {
+  public jump(jumpVelocity: number, currentTick: number): void {
+    this.lastJumpInputTick = currentTick;
     if (this.isGrounded && this.state === PlayerState.PLAYING) {
       this.velocity.y = jumpVelocity;
       this.isGrounded = false;
+      this.bufferedJump = false;
+    } else if (!this.isGrounded && this.state === PlayerState.PLAYING) {
+      // Player is airborne — buffer the jump for landing
+      this.bufferedJump = true;
     }
   }
 
@@ -67,7 +86,7 @@ export class Player {
     this.isDucking = false;
   }
 
-  public updatePosition(deltaTime: number, gravity: number): void {
+  public updatePosition(deltaTime: number, gravity: number, jumpVelocity: number): void {
     // Apply gravity
     if (!this.isGrounded) {
       this.velocity.y -= gravity * deltaTime;
@@ -83,7 +102,33 @@ export class Player {
       this.velocity.y = 0;
       this.isGrounded = true;
       this.isDucking = false; // Reset duck on landing
+
+      // Execute buffered jump immediately on landing
+      if (this.bufferedJump) {
+        this.bufferedJump = false;
+        this.velocity.y = jumpVelocity;
+        this.isGrounded = false;
+      }
     }
+  }
+
+  public recordNearMiss(margin: number, tick: number): void {
+    let level: 'close' | 'insane' | 'pixel_perfect';
+    let bonus: number;
+
+    if (margin < 6) {
+      level = 'pixel_perfect';
+      bonus = 30;
+    } else if (margin < 12) {
+      level = 'insane';
+      bonus = 15;
+    } else {
+      level = 'close';
+      bonus = 5;
+    }
+
+    this.pendingNearMisses.push({ tick, margin, level });
+    this.score += bonus;
   }
 
   public incrementScore(points: number): void {
@@ -121,12 +166,19 @@ export class Player {
   }
 
   public getSnapshot() {
+    const nearMisses = this.pendingNearMisses.length > 0
+      ? [...this.pendingNearMisses]
+      : undefined;
+    // Clear after snapshot so each near-miss is sent exactly once
+    this.pendingNearMisses.length = 0;
+
     return {
       playerId: this.id,
       position: { ...this.position },
       velocity: { ...this.velocity },
       state: this.state,
       score: this.score,
+      ...(nearMisses ? { nearMisses } : {}),
     };
   }
 }
