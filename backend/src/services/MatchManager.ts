@@ -40,12 +40,28 @@ export class MatchManager {
       // Obstacle dimensions
       groundSmallWidth: 30,
       groundSmallHeight: 50,
+      groundTallWidth: 25,
+      groundTallHeight: 80,
+      groundWideWidth: 70,
+      groundWideHeight: 50,
       airHighWidth: 40,
       airHighHeight: 30,
+      airLowWidth: 40,
+      airLowHeight: 30,
+      airMovingWidth: 40,
+      airMovingHeight: 30,
 
       // Spawn positions
       obstacleSpawnX: 800,
       airHighSpawnY: 100,
+      airLowSpawnY: 40,
+      airMovingBaseY: 80,
+
+      // Phase thresholds (seconds)
+      phase2Start: 6,
+      phase3Start: 15,
+      phase4Start: 30,
+      phase5Start: 45,
 
       ...config,
     };

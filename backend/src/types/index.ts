@@ -42,12 +42,28 @@ export interface GameConfig {
   // Obstacle dimensions
   groundSmallWidth: number;
   groundSmallHeight: number;
+  groundTallWidth: number;
+  groundTallHeight: number;
+  groundWideWidth: number;
+  groundWideHeight: number;
   airHighWidth: number;
   airHighHeight: number;
+  airLowWidth: number;
+  airLowHeight: number;
+  airMovingWidth: number;
+  airMovingHeight: number;
 
   // Spawn positions
   obstacleSpawnX: number;
   airHighSpawnY: number;
+  airLowSpawnY: number;
+  airMovingBaseY: number;
+
+  // Phase thresholds (seconds)
+  phase2Start: number;
+  phase3Start: number;
+  phase4Start: number;
+  phase5Start: number;
 }
 
 export enum MatchState {
@@ -87,7 +103,7 @@ export interface GameSnapshot {
     position: Vector2D;
     width: number;
     height: number;
-    type: 'ground_small' | 'air_high';
+    type: 'ground_small' | 'ground_tall' | 'ground_wide' | 'air_high' | 'air_low' | 'air_moving';
   }>;
 }
 
