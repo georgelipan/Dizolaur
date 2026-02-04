@@ -1,4 +1,4 @@
-# F01 — Progressive Difficulty
+# F01 — Progressive Difficulty ✅ DONE
 
 ## Descriere
 Viteza si rata de spawn a obstacolelor cresc progresiv pe parcursul meciului, in 5 faze.

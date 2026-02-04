@@ -1,4 +1,4 @@
-# F02 — Noi Tipuri de Obstacole
+# F02 — Noi Tipuri de Obstacole ✅ DONE
 
 ## Descriere
 Adauga 4 tipuri noi de obstacole pe langa cactus si bird existente.
