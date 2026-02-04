@@ -21,7 +21,7 @@ export class MatchManager {
       maxPlayers: 4,
       gravity: 800, // pixels per second squared
       jumpVelocity: 400, // pixels per second
-      dinoSpeed: 200, // pixels per second
+      runnerSpeed: 200, // pixels per second
       obstacleSpawnRate: 2000, // ms between spawns
       tickRate: 16, // ~60 FPS
       devMode: false,
@@ -38,14 +38,14 @@ export class MatchManager {
       playerStartY: 0,
 
       // Obstacle dimensions
-      cactusWidth: 30,
-      cactusHeight: 50,
-      birdWidth: 40,
-      birdHeight: 30,
+      groundSmallWidth: 30,
+      groundSmallHeight: 50,
+      airHighWidth: 40,
+      airHighHeight: 30,
 
       // Spawn positions
       obstacleSpawnX: 800,
-      birdSpawnY: 100,
+      airHighSpawnY: 100,
 
       ...config,
     };

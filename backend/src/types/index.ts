@@ -23,7 +23,7 @@ export interface GameConfig {
   maxPlayers: number;
   gravity: number;
   jumpVelocity: number;
-  dinoSpeed: number;
+  runnerSpeed: number;
   obstacleSpawnRate: number;
   tickRate: number; // Fixed timestep in ms (e.g., 16ms = ~60 FPS)
   devMode: boolean; // Allow single-player testing
@@ -40,14 +40,14 @@ export interface GameConfig {
   playerStartY: number;
 
   // Obstacle dimensions
-  cactusWidth: number;
-  cactusHeight: number;
-  birdWidth: number;
-  birdHeight: number;
+  groundSmallWidth: number;
+  groundSmallHeight: number;
+  airHighWidth: number;
+  airHighHeight: number;
 
   // Spawn positions
   obstacleSpawnX: number;
-  birdSpawnY: number;
+  airHighSpawnY: number;
 }
 
 export enum MatchState {
@@ -87,7 +87,7 @@ export interface GameSnapshot {
     position: Vector2D;
     width: number;
     height: number;
-    type: 'cactus' | 'bird';
+    type: 'ground_small' | 'air_high';
   }>;
 }
 

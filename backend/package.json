@@ -1,7 +1,7 @@
 {
   "name": "backend",
   "version": "1.0.0",
-  "description": "Multiplayer Skill-Based Dino Game - Backend",
+  "description": "Multiplayer Skill-Based Endless Runner - Backend",
   "main": "dist/server.js",
   "scripts": {
     "build": "tsc",
@@ -9,7 +9,7 @@
     "start": "node dist/server.js",
     "watch": "tsc -w"
   },
-  "keywords": ["game", "multiplayer", "socket.io", "dino"],
+  "keywords": ["game", "multiplayer", "socket.io", "endless-runner"],
   "author": "",
   "license": "ISC",
   "type": "module",

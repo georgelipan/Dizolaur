@@ -9,7 +9,7 @@ import { SocketHandler } from './handlers/SocketHandler.js';
  * Main entry point for the game server
  */
 async function main() {
-  console.log('🦖 Dino Game Server starting...');
+  console.log('🎮 Game Server starting...');
 
   // Load configuration
   const config = loadConfig();

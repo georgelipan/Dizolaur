@@ -1,6 +1,6 @@
 import type { Vector2D, GameConfig } from '../types/index.js';
 
-export type ObstacleType = 'cactus' | 'bird';
+export type ObstacleType = 'ground_small' | 'air_high';
 
 export class Obstacle {
   public id: string;
@@ -58,24 +58,24 @@ export class Obstacle {
     };
   }
 
-  public static createCactus(id: string, x: number, speed: number, config: GameConfig): Obstacle {
+  public static createGroundSmall(id: string, x: number, speed: number, config: GameConfig): Obstacle {
     return new Obstacle(
       id,
-      'cactus',
+      'ground_small',
       { x, y: config.groundY },
-      config.cactusWidth,
-      config.cactusHeight,
+      config.groundSmallWidth,
+      config.groundSmallHeight,
       { x: -speed, y: 0 }
     );
   }
 
-  public static createBird(id: string, x: number, y: number, speed: number, config: GameConfig): Obstacle {
+  public static createAirHigh(id: string, x: number, y: number, speed: number, config: GameConfig): Obstacle {
     return new Obstacle(
       id,
-      'bird',
+      'air_high',
       { x, y },
-      config.birdWidth,
-      config.birdHeight,
+      config.airHighWidth,
+      config.airHighHeight,
       { x: -speed, y: 0 }
     );
   }

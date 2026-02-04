@@ -3,7 +3,7 @@ import type { Vector2D } from '../types';
 
 export class ObstacleSprite extends Phaser.GameObjects.Rectangle {
   private obstacleId: string;
-  private obstacleType: 'cactus' | 'bird';
+  private obstacleType: 'ground_small' | 'air_high';
 
   constructor(
     scene: Phaser.Scene,
@@ -11,10 +11,10 @@ export class ObstacleSprite extends Phaser.GameObjects.Rectangle {
     position: Vector2D,
     width: number,
     height: number,
-    type: 'cactus' | 'bird'
+    type: 'ground_small' | 'air_high'
   ) {
     // Different colors for different obstacle types
-    const color = type === 'cactus' ? 0x00aa00 : 0xaa0000;
+    const color = type === 'ground_small' ? 0x00aa00 : 0xaa0000;
     super(scene, position.x, position.y, width, height, color);
 
     this.obstacleId = id;
@@ -36,7 +36,7 @@ export class ObstacleSprite extends Phaser.GameObjects.Rectangle {
     return this.obstacleId;
   }
 
-  public getType(): 'cactus' | 'bird' {
+  public getType(): 'ground_small' | 'air_high' {
     return this.obstacleType;
   }
 }

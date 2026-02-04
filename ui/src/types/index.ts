@@ -18,7 +18,7 @@ export interface ObstacleSnapshot {
   position: Vector2D;
   width: number;
   height: number;
-  type: 'cactus' | 'bird';
+  type: 'ground_small' | 'air_high';
 }
 
 export interface GameSnapshot {
@@ -54,7 +54,7 @@ export interface GameConfig {
   maxPlayers: number;
   gravity: number;
   jumpVelocity: number;
-  dinoSpeed: number;
+  runnerSpeed: number;
   obstacleSpawnRate: number;
   tickRate: number;
 
@@ -70,14 +70,14 @@ export interface GameConfig {
   playerStartY: number;
 
   // Obstacle dimensions
-  cactusWidth: number;
-  cactusHeight: number;
-  birdWidth: number;
-  birdHeight: number;
+  groundSmallWidth: number;
+  groundSmallHeight: number;
+  airHighWidth: number;
+  airHighHeight: number;
 
   // Spawn positions
   obstacleSpawnX: number;
-  birdSpawnY: number;
+  airHighSpawnY: number;
 }
 
 export interface MatchResult {

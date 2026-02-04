@@ -139,12 +139,12 @@ export class Match {
   public spawnObstacle(): void {
     const obstacleId = `obs_${this.id}_${this.obstacleIdCounter++}`;
     const spawnX = this.config.obstacleSpawnX;
-    const speed = this.config.dinoSpeed;
+    const speed = this.config.runnerSpeed;
 
     // Use seeded RNG — deterministic, auditable, same for all players
     const obstacle = this.rng.nextBool(0.5)
-      ? Obstacle.createCactus(obstacleId, spawnX, speed, this.config)
-      : Obstacle.createBird(obstacleId, spawnX, this.config.birdSpawnY, speed, this.config);
+      ? Obstacle.createGroundSmall(obstacleId, spawnX, speed, this.config)
+      : Obstacle.createAirHigh(obstacleId, spawnX, this.config.airHighSpawnY, speed, this.config);
 
     this.obstacles.set(obstacleId, obstacle);
     this.logEvent('obstacle_spawned', { obstacleId, type: obstacle.type });
