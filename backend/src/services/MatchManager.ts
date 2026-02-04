@@ -149,20 +149,24 @@ export class MatchManager {
   }
 
   private startObstacleSpawning(matchId: string): void {
-    const match = this.matches.get(matchId);
-    if (!match) {
-      return;
-    }
-
-    const spawnInterval = setInterval(() => {
-      const currentMatch = this.matches.get(matchId);
-      if (!currentMatch || currentMatch.state !== MatchState.IN_PROGRESS) {
-        clearInterval(spawnInterval);
+    const scheduleNext = () => {
+      const match = this.matches.get(matchId);
+      if (!match || match.state !== MatchState.IN_PROGRESS) {
         return;
       }
 
-      currentMatch.spawnObstacle();
-    }, match.config.obstacleSpawnRate);
+      match.spawnObstacle();
+
+      // Recalculate interval based on current difficulty phase
+      const interval = match.getSpawnInterval(match.getElapsedSeconds());
+      setTimeout(scheduleNext, interval);
+    };
+
+    // Schedule first spawn using initial interval
+    const match = this.matches.get(matchId);
+    if (!match) return;
+    const initialInterval = match.getSpawnInterval(0);
+    setTimeout(scheduleNext, initialInterval);
   }
 
   public updateAllMatches(): void {

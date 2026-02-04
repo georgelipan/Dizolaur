@@ -136,10 +136,38 @@ export class Match {
     this.checkMatchEnd();
   }
 
+  /** Seconds elapsed since match started */
+  public getElapsedSeconds(): number {
+    if (!this.startTime) return 0;
+    return (Date.now() - this.startTime) / 1000;
+  }
+
+  /** Progressive speed based on elapsed time — relative to config.runnerSpeed */
+  public getSpeed(elapsed: number): number {
+    const base = this.config.runnerSpeed;
+    // Phase multipliers derived from spec: 1.0x → 1.3x → 1.8x → 2.2x → 2.6x cap
+    if (elapsed <= 6) return base;
+    if (elapsed <= 15) return base * (1.0 + (0.3 / 9) * (elapsed - 6));
+    if (elapsed <= 30) return base * (1.3 + (0.5 / 15) * (elapsed - 15));
+    if (elapsed <= 45) return base * (1.8 + (0.4 / 15) * (elapsed - 30));
+    return Math.min(base * 2.6, base * (2.2 + 0.04 * (elapsed - 45)));
+  }
+
+  /** Progressive spawn interval based on elapsed time — relative to config.obstacleSpawnRate */
+  public getSpawnInterval(elapsed: number): number {
+    const base = this.config.obstacleSpawnRate;
+    // Multipliers: 1.25x → 1.0x → 0.7x → 0.5x → 0.35x floor
+    if (elapsed <= 6) return base * 1.25;
+    if (elapsed <= 15) return base * (1.25 - (0.25 / 9) * (elapsed - 6));
+    if (elapsed <= 30) return base * (1.0 - (0.3 / 15) * (elapsed - 15));
+    if (elapsed <= 45) return base * (0.7 - (0.2 / 15) * (elapsed - 30));
+    return Math.max(base * 0.35, base * (0.5 - 0.015 * (elapsed - 45)));
+  }
+
   public spawnObstacle(): void {
     const obstacleId = `obs_${this.id}_${this.obstacleIdCounter++}`;
     const spawnX = this.config.obstacleSpawnX;
-    const speed = this.config.runnerSpeed;
+    const speed = this.getSpeed(this.getElapsedSeconds());
 
     // Use seeded RNG — deterministic, auditable, same for all players
     const obstacle = this.rng.nextBool(0.5)
@@ -147,10 +175,19 @@ export class Match {
       : Obstacle.createAirHigh(obstacleId, spawnX, this.config.airHighSpawnY, speed, this.config);
 
     this.obstacles.set(obstacleId, obstacle);
-    this.logEvent('obstacle_spawned', { obstacleId, type: obstacle.type });
+    this.logEvent('obstacle_spawned', { obstacleId, type: obstacle.type, speed });
   }
 
+  private static readonly MATCH_HARD_CAP_SECONDS = 90;
+
   private checkMatchEnd(): void {
+    // Hard cap: force end at 90s
+    if (this.getElapsedSeconds() >= Match.MATCH_HARD_CAP_SECONDS) {
+      this.logEvent('match_hard_cap', { elapsed: this.getElapsedSeconds() });
+      this.end();
+      return;
+    }
+
     // Count active players
     let activePlayers = 0;
     for (const player of this.players.values()) {
