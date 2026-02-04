@@ -53,8 +53,8 @@ Tranzitie: lerp liniar pe 3 secunde la granita de faza.
 - Phase info trebuie trimisa in snapshot de la server
 
 ## Validare
-- [ ] Speed lines apar doar peste 300px/s
-- [ ] Background-ul se schimba gradual pe faze
-- [ ] Screen shake doar la eliminare si pixel perfect near-miss
-- [ ] Particles la jump/landing/eliminare
-- [ ] Performance: fara drop de FPS pe mobile
+- [x] Speed lines apar doar peste 300px/s
+- [x] Background-ul se schimba gradual pe faze
+- [x] Screen shake doar la eliminare si pixel perfect near-miss
+- [x] Particles la jump/landing/eliminare
+- [x] Performance: fara drop de FPS pe mobile

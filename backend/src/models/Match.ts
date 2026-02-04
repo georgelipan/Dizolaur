@@ -3,6 +3,7 @@ import { MatchState } from '../types/index.js';
 import { Player } from './Player.js';
 import { Obstacle } from './Obstacle.js';
 import { SeededRNG, generateMatchSeed, generateSeedCommitment } from '../utils/hash.js';
+import { PatternLibrary } from './PatternLibrary.js';
 
 export class Match {
   public id: string;
@@ -116,7 +117,7 @@ export class Match {
     // Update all players
     for (const player of this.players.values()) {
       if (player.state === 'PLAYING') {
-        player.updatePosition(deltaTime, this.config.gravity);
+        player.updatePosition(deltaTime, this.config.gravity, this.config.jumpVelocity);
         // Increment score proportional to time survived (normalized to ~60 per second)
         player.incrementScore(deltaTime * 60);
       }
@@ -176,44 +177,51 @@ export class Match {
     return 5;
   }
 
-  // Cumulative probability distributions per phase
-  // Order: [ground_small, air_high, ground_tall, air_low, ground_wide, air_moving]
-  private static readonly PHASE_DISTRIBUTIONS: number[][] = [
-    [1.00, 1.00, 1.00, 1.00, 1.00, 1.00], // Phase 1: 100% ground_small
-    [0.70, 1.00, 1.00, 1.00, 1.00, 1.00], // Phase 2: 70/30
-    [0.35, 0.60, 0.75, 0.85, 1.00, 1.00], // Phase 3: 35/25/15/10/15/0
-    [0.25, 0.45, 0.60, 0.70, 0.90, 1.00], // Phase 4: 25/20/15/10/20/10
-    [0.20, 0.35, 0.50, 0.65, 0.85, 1.00], // Phase 5: 20/15/15/15/20/15
-  ];
+  /** Obstacle factory by type name */
+  private createObstacle(id: string, type: string, x: number, speed: number): Obstacle {
+    switch (type) {
+      case 'ground_small': return Obstacle.createGroundSmall(id, x, speed, this.config);
+      case 'ground_tall':  return Obstacle.createGroundTall(id, x, speed, this.config);
+      case 'ground_wide':  return Obstacle.createGroundWide(id, x, speed, this.config);
+      case 'air_high':     return Obstacle.createAirHigh(id, x, speed, this.config);
+      case 'air_low':      return Obstacle.createAirLow(id, x, speed, this.config);
+      case 'air_moving':   return Obstacle.createAirMoving(id, x, speed, this.config);
+      default:             return Obstacle.createGroundSmall(id, x, speed, this.config);
+    }
+  }
 
-  public spawnObstacle(): void {
-    const obstacleId = `obs_${this.id}_${this.obstacleIdCounter++}`;
+  /**
+   * Spawn a pattern (group of 1-4 obstacles with controlled spacing).
+   * All obstacles in the pattern are placed at once with x-position offsets.
+   * Returns the pattern size (number of obstacles) for spawn interval scaling.
+   */
+  public spawnPattern(): number {
     const spawnX = this.config.obstacleSpawnX;
     const elapsed = this.getElapsedSeconds();
     const speed = this.getSpeed(elapsed);
     const phase = this.getPhase(elapsed);
 
-    // Use seeded RNG with phase-based weighted distribution
-    const roll = this.rng.next();
-    const dist = Match.PHASE_DISTRIBUTIONS[phase - 1]!;
+    const { pattern, elements } = PatternLibrary.selectPattern(phase, speed, this.rng, this.config);
 
-    let obstacle: Obstacle;
-    if (roll < dist[0]!) {
-      obstacle = Obstacle.createGroundSmall(obstacleId, spawnX, speed, this.config);
-    } else if (roll < dist[1]!) {
-      obstacle = Obstacle.createAirHigh(obstacleId, spawnX, speed, this.config);
-    } else if (roll < dist[2]!) {
-      obstacle = Obstacle.createGroundTall(obstacleId, spawnX, speed, this.config);
-    } else if (roll < dist[3]!) {
-      obstacle = Obstacle.createAirLow(obstacleId, spawnX, speed, this.config);
-    } else if (roll < dist[4]!) {
-      obstacle = Obstacle.createGroundWide(obstacleId, spawnX, speed, this.config);
-    } else {
-      obstacle = Obstacle.createAirMoving(obstacleId, spawnX, speed, this.config);
+    let currentX = spawnX;
+    for (const element of elements) {
+      currentX += element.gap;
+      const obstacleId = `obs_${this.id}_${this.obstacleIdCounter++}`;
+      const obstacle = this.createObstacle(obstacleId, element.type, currentX, speed);
+      obstacle.pattern = pattern.id;
+      this.obstacles.set(obstacleId, obstacle);
     }
 
-    this.obstacles.set(obstacleId, obstacle);
-    this.logEvent('obstacle_spawned', { obstacleId, type: obstacle.type, speed, phase });
+    this.logEvent('pattern_spawned', {
+      patternId: pattern.id,
+      patternName: pattern.name,
+      difficulty: pattern.difficulty,
+      obstacleCount: elements.length,
+      speed,
+      phase,
+    });
+
+    return pattern.size;
   }
 
   private static readonly MATCH_HARD_CAP_SECONDS = 90;
@@ -277,9 +285,12 @@ export class Match {
   }
 
   public getSnapshot(): GameSnapshot {
+    const elapsed = this.getElapsedSeconds();
     return {
       timestamp: Date.now(),
       tick: this.currentTick,
+      phase: this.getPhase(elapsed),
+      speed: this.getSpeed(elapsed),
       players: Array.from(this.players.values()).map((p) => p.getSnapshot()),
       obstacles: Array.from(this.obstacles.values()).map((o) => o.getSnapshot()),
     };
