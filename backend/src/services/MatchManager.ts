@@ -21,10 +21,48 @@ export class MatchManager {
       maxPlayers: 4,
       gravity: 800, // pixels per second squared
       jumpVelocity: 400, // pixels per second
-      dinoSpeed: 200, // pixels per second
+      runnerSpeed: 200, // pixels per second
       obstacleSpawnRate: 2000, // ms between spawns
       tickRate: 16, // ~60 FPS
       devMode: false,
+
+      // World dimensions
+      worldWidth: 800,
+      worldHeight: 600,
+      groundY: 0,
+
+      // Player dimensions
+      playerWidth: 40,
+      playerHeight: 50,
+      playerStartX: 50,
+      playerStartY: 0,
+
+      // Obstacle dimensions
+      groundSmallWidth: 30,
+      groundSmallHeight: 50,
+      groundTallWidth: 25,
+      groundTallHeight: 80,
+      groundWideWidth: 70,
+      groundWideHeight: 50,
+      airHighWidth: 40,
+      airHighHeight: 30,
+      airLowWidth: 40,
+      airLowHeight: 30,
+      airMovingWidth: 40,
+      airMovingHeight: 30,
+
+      // Spawn positions
+      obstacleSpawnX: 800,
+      airHighSpawnY: 100,
+      airLowSpawnY: 40,
+      airMovingBaseY: 80,
+
+      // Phase thresholds (seconds)
+      phase2Start: 6,
+      phase3Start: 15,
+      phase4Start: 30,
+      phase5Start: 45,
+
       ...config,
     };
   }
@@ -127,20 +165,24 @@ export class MatchManager {
   }
 
   private startObstacleSpawning(matchId: string): void {
-    const match = this.matches.get(matchId);
-    if (!match) {
-      return;
-    }
-
-    const spawnInterval = setInterval(() => {
-      const currentMatch = this.matches.get(matchId);
-      if (!currentMatch || currentMatch.state !== MatchState.IN_PROGRESS) {
-        clearInterval(spawnInterval);
+    const scheduleNext = () => {
+      const match = this.matches.get(matchId);
+      if (!match || match.state !== MatchState.IN_PROGRESS) {
         return;
       }
 
-      currentMatch.spawnObstacle();
-    }, match.config.obstacleSpawnRate);
+      match.spawnObstacle();
+
+      // Recalculate interval based on current difficulty phase
+      const interval = match.getSpawnInterval(match.getElapsedSeconds());
+      setTimeout(scheduleNext, interval);
+    };
+
+    // Schedule first spawn using initial interval
+    const match = this.matches.get(matchId);
+    if (!match) return;
+    const initialInterval = match.getSpawnInterval(0);
+    setTimeout(scheduleNext, initialInterval);
   }
 
   public updateAllMatches(): void {

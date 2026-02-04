@@ -94,7 +94,7 @@ export class Match {
     // Initialize all players to playing state
     for (const player of this.players.values()) {
       player.startPlaying();
-      player.position = { x: 50, y: 0 }; // Starting position
+      player.position = { x: this.config.playerStartX, y: this.config.playerStartY };
       player.velocity = { x: 0, y: 0 };
     }
 
@@ -136,21 +136,96 @@ export class Match {
     this.checkMatchEnd();
   }
 
-  public spawnObstacle(): void {
-    const obstacleId = `obs_${this.id}_${this.obstacleIdCounter++}`;
-    const spawnX = 800; // Right edge of screen
-    const speed = this.config.dinoSpeed;
-
-    // Use seeded RNG — deterministic, auditable, same for all players
-    const obstacle = this.rng.nextBool(0.5)
-      ? Obstacle.createCactus(obstacleId, spawnX, speed)
-      : Obstacle.createBird(obstacleId, spawnX, 100, speed);
-
-    this.obstacles.set(obstacleId, obstacle);
-    this.logEvent('obstacle_spawned', { obstacleId, type: obstacle.type });
+  /** Seconds elapsed since match started */
+  public getElapsedSeconds(): number {
+    if (!this.startTime) return 0;
+    return (Date.now() - this.startTime) / 1000;
   }
 
+  /** Progressive speed based on elapsed time — relative to config.runnerSpeed */
+  public getSpeed(elapsed: number): number {
+    const base = this.config.runnerSpeed;
+    const { phase2Start: p2, phase3Start: p3, phase4Start: p4, phase5Start: p5 } = this.config;
+    // Phase multipliers derived from spec: 1.0x → 1.3x → 1.8x → 2.2x → 2.6x cap
+    if (elapsed <= p2) return base;
+    if (elapsed <= p3) return base * (1.0 + (0.3 / (p3 - p2)) * (elapsed - p2));
+    if (elapsed <= p4) return base * (1.3 + (0.5 / (p4 - p3)) * (elapsed - p3));
+    if (elapsed <= p5) return base * (1.8 + (0.4 / (p5 - p4)) * (elapsed - p4));
+    return Math.min(base * 2.6, base * (2.2 + 0.04 * (elapsed - p5)));
+  }
+
+  /** Progressive spawn interval based on elapsed time — relative to config.obstacleSpawnRate */
+  public getSpawnInterval(elapsed: number): number {
+    const base = this.config.obstacleSpawnRate;
+    const { phase2Start: p2, phase3Start: p3, phase4Start: p4, phase5Start: p5 } = this.config;
+    // Multipliers: 1.25x → 1.0x → 0.7x → 0.5x → 0.35x floor
+    if (elapsed <= p2) return base * 1.25;
+    if (elapsed <= p3) return base * (1.25 - (0.25 / (p3 - p2)) * (elapsed - p2));
+    if (elapsed <= p4) return base * (1.0 - (0.3 / (p4 - p3)) * (elapsed - p3));
+    if (elapsed <= p5) return base * (0.7 - (0.2 / (p5 - p4)) * (elapsed - p4));
+    return Math.max(base * 0.35, base * (0.5 - 0.015 * (elapsed - p5)));
+  }
+
+  /** Returns current phase (1-5) based on elapsed time */
+  public getPhase(elapsed: number): number {
+    const { phase2Start, phase3Start, phase4Start, phase5Start } = this.config;
+    if (elapsed <= phase2Start) return 1;
+    if (elapsed <= phase3Start) return 2;
+    if (elapsed <= phase4Start) return 3;
+    if (elapsed <= phase5Start) return 4;
+    return 5;
+  }
+
+  // Cumulative probability distributions per phase
+  // Order: [ground_small, air_high, ground_tall, air_low, ground_wide, air_moving]
+  private static readonly PHASE_DISTRIBUTIONS: number[][] = [
+    [1.00, 1.00, 1.00, 1.00, 1.00, 1.00], // Phase 1: 100% ground_small
+    [0.70, 1.00, 1.00, 1.00, 1.00, 1.00], // Phase 2: 70/30
+    [0.35, 0.60, 0.75, 0.85, 1.00, 1.00], // Phase 3: 35/25/15/10/15/0
+    [0.25, 0.45, 0.60, 0.70, 0.90, 1.00], // Phase 4: 25/20/15/10/20/10
+    [0.20, 0.35, 0.50, 0.65, 0.85, 1.00], // Phase 5: 20/15/15/15/20/15
+  ];
+
+  public spawnObstacle(): void {
+    const obstacleId = `obs_${this.id}_${this.obstacleIdCounter++}`;
+    const spawnX = this.config.obstacleSpawnX;
+    const elapsed = this.getElapsedSeconds();
+    const speed = this.getSpeed(elapsed);
+    const phase = this.getPhase(elapsed);
+
+    // Use seeded RNG with phase-based weighted distribution
+    const roll = this.rng.next();
+    const dist = Match.PHASE_DISTRIBUTIONS[phase - 1]!;
+
+    let obstacle: Obstacle;
+    if (roll < dist[0]!) {
+      obstacle = Obstacle.createGroundSmall(obstacleId, spawnX, speed, this.config);
+    } else if (roll < dist[1]!) {
+      obstacle = Obstacle.createAirHigh(obstacleId, spawnX, speed, this.config);
+    } else if (roll < dist[2]!) {
+      obstacle = Obstacle.createGroundTall(obstacleId, spawnX, speed, this.config);
+    } else if (roll < dist[3]!) {
+      obstacle = Obstacle.createAirLow(obstacleId, spawnX, speed, this.config);
+    } else if (roll < dist[4]!) {
+      obstacle = Obstacle.createGroundWide(obstacleId, spawnX, speed, this.config);
+    } else {
+      obstacle = Obstacle.createAirMoving(obstacleId, spawnX, speed, this.config);
+    }
+
+    this.obstacles.set(obstacleId, obstacle);
+    this.logEvent('obstacle_spawned', { obstacleId, type: obstacle.type, speed, phase });
+  }
+
+  private static readonly MATCH_HARD_CAP_SECONDS = 90;
+
   private checkMatchEnd(): void {
+    // Hard cap: force end at 90s
+    if (this.getElapsedSeconds() >= Match.MATCH_HARD_CAP_SECONDS) {
+      this.logEvent('match_hard_cap', { elapsed: this.getElapsedSeconds() });
+      this.end();
+      return;
+    }
+
     // Count active players
     let activePlayers = 0;
     for (const player of this.players.values()) {

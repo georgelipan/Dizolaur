@@ -31,7 +31,7 @@ export class WaitingScene extends Phaser.Scene {
     const centerY = this.cameras.main.centerY;
 
     // Title
-    this.add.text(centerX, 100, 'Multiplayer Dino Game', {
+    this.add.text(centerX, 100, 'Multiplayer Endless Runner', {
       fontSize: '32px',
       color: '#ffffff',
       fontStyle: 'bold',

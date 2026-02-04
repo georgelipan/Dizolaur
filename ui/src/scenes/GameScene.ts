@@ -4,18 +4,19 @@ import type { GameSession } from '../services/GameSession';
 import { InputBuffer } from '../services/InputBuffer';
 import { PlayerSprite } from '../utils/PlayerSprite';
 import { ObstacleSprite } from '../utils/ObstacleSprite';
-import type { GameSnapshot, MatchResult } from '../types';
+import type { GameSnapshot, GameConfig, MatchResult } from '../types';
 import { PlayerState } from '../types';
 
 const DUCK_THROTTLE_MS = 100;
 const MAX_PLAYERS = 10;
 const MAX_OBSTACLES = 50;
-const GROUND_Y = 500;
 
 export class GameScene extends Phaser.Scene {
   private networkService!: NetworkService;
   private gameSession!: GameSession;
   private inputBuffer!: InputBuffer;
+  private config!: GameConfig;
+  private groundYScreen!: number;
 
   private players: Map<string, PlayerSprite> = new Map();
   private obstacles: Map<string, ObstacleSprite> = new Map();
@@ -42,6 +43,19 @@ export class GameScene extends Phaser.Scene {
   create() {
     this.networkService = this.registry.get('networkService');
     this.gameSession = this.registry.get('gameSession');
+
+    // Get game config from server (sent in match_starting event)
+    const config = this.gameSession.getGameConfig();
+    if (!config) {
+      console.error('GameConfig not available in GameScene');
+      return;
+    }
+    this.config = config;
+
+    // Calculate screen ground Y from server world dimensions
+    // Backend uses Y=0 as ground, frontend inverts Y axis
+    this.groundYScreen = config.worldHeight - 100;
+
     this.inputBuffer = new InputBuffer();
     this.currentScore = 0;
     this.lastDuckTime = 0;
@@ -51,8 +65,14 @@ export class GameScene extends Phaser.Scene {
     // Setup camera
     this.cameras.main.setBackgroundColor('#87CEEB');
 
-    // Draw ground
-    const ground = this.add.rectangle(400, GROUND_Y + 25, 800, 50, 0x8B4513);
+    // Draw ground using config dimensions
+    const ground = this.add.rectangle(
+      this.config.worldWidth / 2,
+      this.groundYScreen + 25,
+      this.config.worldWidth,
+      50,
+      0x8B4513
+    );
     ground.setOrigin(0.5);
 
     // Setup input
@@ -79,7 +99,7 @@ export class GameScene extends Phaser.Scene {
     });
 
     // Instructions
-    this.add.text(400, 16, 'Press SPACE or UP to Jump, DOWN to Duck', {
+    this.add.text(this.config.worldWidth / 2, 16, 'Press SPACE or UP to Jump, DOWN to Duck', {
       fontSize: '18px',
       color: '#000000',
       backgroundColor: '#ffffff',
@@ -154,14 +174,16 @@ export class GameScene extends Phaser.Scene {
           this,
           playerData.playerId,
           playerData.position.x,
-          GROUND_Y - playerData.position.y,
+          this.groundYScreen - playerData.position.y,
+          this.config.playerWidth,
+          this.config.playerHeight,
           isLocalPlayer
         );
         this.players.set(playerData.playerId, playerSprite);
       }
 
       const playerSprite = this.players.get(playerData.playerId)!;
-      const screenY = GROUND_Y - playerData.position.y;
+      const screenY = this.groundYScreen - playerData.position.y;
 
       playerSprite.updatePosition(
         { x: playerData.position.x, y: screenY },
@@ -195,7 +217,7 @@ export class GameScene extends Phaser.Scene {
       if (!obstacleData.id || !obstacleData.position) continue;
 
       if (!this.obstacles.has(obstacleData.id)) {
-        const screenY = GROUND_Y - obstacleData.position.y;
+        const screenY = this.groundYScreen - obstacleData.position.y;
         const obstacleSprite = new ObstacleSprite(
           this,
           obstacleData.id,
@@ -208,7 +230,7 @@ export class GameScene extends Phaser.Scene {
       }
 
       const obstacleSprite = this.obstacles.get(obstacleData.id)!;
-      const screenY = GROUND_Y - obstacleData.position.y;
+      const screenY = this.groundYScreen - obstacleData.position.y;
       obstacleSprite.updatePosition({ x: obstacleData.position.x, y: screenY });
     }
 
