@@ -9,15 +9,29 @@ export class GameSession {
   private playerCount: number = 0;
 
   private constructor() {
-    // Get token from URL query params
     const params = new URLSearchParams(window.location.search);
     const token = params.get('token') || 'demo-token-' + Date.now();
 
+    // Validate bet amount from URL (server should override this)
+    const rawBet = parseFloat(params.get('bet') || '10');
+    const betAmount = (Number.isFinite(rawBet) && rawBet > 0 && rawBet <= 10000) ? rawBet : 10;
+
+    const rawCurrency = params.get('currency') || 'USD';
+    // Sanitize currency to alphanumeric only (max 5 chars)
+    const currency = rawCurrency.replace(/[^a-zA-Z0-9]/g, '').substring(0, 5) || 'USD';
+
     this.sessionData = {
       token,
-      betAmount: parseFloat(params.get('bet') || '10'),
-      currency: params.get('currency') || 'USD',
+      betAmount,
+      currency,
     };
+
+    // Clear token from URL to prevent leaking via Referer header
+    if (params.has('token')) {
+      const cleanUrl = new URL(window.location.href);
+      cleanUrl.searchParams.delete('token');
+      window.history.replaceState({}, '', cleanUrl.toString());
+    }
   }
 
   public static getInstance(): GameSession {
@@ -71,8 +85,16 @@ export class GameSession {
     return this.playerCount;
   }
 
+  public setBetAmount(amount: number): void {
+    this.sessionData.betAmount = amount;
+  }
+
   public getBetAmount(): number {
     return this.sessionData.betAmount || 0;
+  }
+
+  public setCurrency(currency: string): void {
+    this.sessionData.currency = currency;
   }
 
   public getCurrency(): string {
@@ -83,5 +105,7 @@ export class GameSession {
     this.gameConfig = null;
     this.matchState = null;
     this.playerCount = 0;
+    this.sessionData.playerId = undefined;
+    this.sessionData.matchId = undefined;
   }
 }

@@ -20,26 +20,26 @@ export class PlayerSprite extends Phaser.GameObjects.Rectangle {
     // Add to scene
     scene.add.existing(this);
 
-    // Add label above player
+    // Set origin to bottom-left to match server hitbox (x = left edge, y = bottom edge)
+    this.setOrigin(0, 1);
+
+    // Add label above player (centered on sprite width)
     const labelText = isLocalPlayer ? 'YOU' : playerId.substring(0, 8);
-    this.playerLabel = scene.add.text(x, y - 40, labelText, {
+    this.playerLabel = scene.add.text(x + 20, y - 40, labelText, {
       fontSize: '12px',
       color: isLocalPlayer ? '#00ff00' : '#ffffff',
       backgroundColor: '#000000',
       padding: { x: 4, y: 2 },
     });
     this.playerLabel.setOrigin(0.5);
-
-    // Set origin to bottom center for ground alignment
-    this.setOrigin(0.5, 1);
   }
 
   public updatePosition(position: Vector2D, velocity: Vector2D): void {
     this.x = position.x;
     this.y = position.y;
 
-    // Update label position
-    this.playerLabel.x = this.x;
+    // Update label position (centered on sprite width of 40)
+    this.playerLabel.x = this.x + 20;
     this.playerLabel.y = this.y - 40;
 
     // Simple animation: tilt based on velocity

@@ -4,7 +4,13 @@ import type { GameSession } from '../services/GameSession';
 import { InputBuffer } from '../services/InputBuffer';
 import { PlayerSprite } from '../utils/PlayerSprite';
 import { ObstacleSprite } from '../utils/ObstacleSprite';
-import type { GameSnapshot } from '../types';
+import type { GameSnapshot, MatchResult } from '../types';
+import { PlayerState } from '../types';
+
+const DUCK_THROTTLE_MS = 100;
+const MAX_PLAYERS = 10;
+const MAX_OBSTACLES = 50;
+const GROUND_Y = 500;
 
 export class GameScene extends Phaser.Scene {
   private networkService!: NetworkService;
@@ -17,30 +23,43 @@ export class GameScene extends Phaser.Scene {
   private scoreText!: Phaser.GameObjects.Text;
   private currentScore = 0;
 
-  private groundY = 500; // Ground level
   private cursors!: Phaser.Types.Input.Keyboard.CursorKeys;
   private spaceKey!: Phaser.Input.Keyboard.Key;
+
+  private lastDuckTime = 0;
+
+  // Store handler references for cleanup
+  private onGameUpdate!: (snapshot: GameSnapshot) => void;
+  private onMatchEnded!: (result: MatchResult) => void;
+
+  // Scratch set for O(n) cleanup instead of O(n*m)
+  private readonly activeIdSet: Set<string> = new Set();
 
   constructor() {
     super({ key: 'GameScene' });
   }
 
   create() {
-    // Get services from registry
     this.networkService = this.registry.get('networkService');
     this.gameSession = this.registry.get('gameSession');
     this.inputBuffer = new InputBuffer();
+    this.currentScore = 0;
+    this.lastDuckTime = 0;
+    this.players.clear();
+    this.obstacles.clear();
 
     // Setup camera
-    this.cameras.main.setBackgroundColor('#87CEEB'); // Sky blue
+    this.cameras.main.setBackgroundColor('#87CEEB');
 
     // Draw ground
-    const ground = this.add.rectangle(400, this.groundY + 25, 800, 50, 0x8B4513);
+    const ground = this.add.rectangle(400, GROUND_Y + 25, 800, 50, 0x8B4513);
     ground.setOrigin(0.5);
 
     // Setup input
-    this.cursors = this.input.keyboard!.createCursorKeys();
-    this.spaceKey = this.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE);
+    if (this.input.keyboard) {
+      this.cursors = this.input.keyboard.createCursorKeys();
+      this.spaceKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE);
+    }
 
     // UI - Score
     this.scoreText = this.add.text(16, 16, 'Score: 0', {
@@ -60,110 +79,123 @@ export class GameScene extends Phaser.Scene {
     });
 
     // Instructions
-    this.add.text(400, 16, 'Press SPACE or UP to Jump', {
+    this.add.text(400, 16, 'Press SPACE or UP to Jump, DOWN to Duck', {
       fontSize: '18px',
       color: '#000000',
       backgroundColor: '#ffffff',
       padding: { x: 8, y: 4 },
     }).setOrigin(0.5, 0);
 
-    // Network event listeners
-    this.networkService.on('game_update', (snapshot: GameSnapshot) => {
+    // Network event listeners (stored for cleanup)
+    this.onGameUpdate = (snapshot: GameSnapshot) => {
       this.handleGameUpdate(snapshot);
-    });
+    };
 
-    this.networkService.on('match_ended', (result) => {
-      console.log('Match ended:', result);
+    this.onMatchEnded = (result: MatchResult) => {
       this.scene.start('ResultsScene', { result });
-    });
+    };
 
-    console.log('🎮 Game started!');
+    this.networkService.on('game_update', this.onGameUpdate);
+    this.networkService.on('match_ended', this.onMatchEnded);
+
+    // Register shutdown for cleanup
+    this.events.once('shutdown', this.shutdown, this);
   }
 
-  update() {
-    // Handle input
+  update(_time: number, _delta: number) {
+    if (!this.cursors || !this.spaceKey) return;
+
+    // Handle jump input (JustDown = frame-rate independent)
     if (Phaser.Input.Keyboard.JustDown(this.spaceKey) ||
         Phaser.Input.Keyboard.JustDown(this.cursors.up!)) {
       this.handleJumpInput();
     }
 
+    // Handle duck input with throttle
     if (this.cursors.down?.isDown) {
-      this.handleDuckInput();
+      const now = Date.now();
+      if (now - this.lastDuckTime >= DUCK_THROTTLE_MS) {
+        this.lastDuckTime = now;
+        this.handleDuckInput();
+      }
     }
   }
 
   private handleJumpInput(): void {
-    const playerId = this.gameSession.getPlayerId();
-    if (!playerId) return;
-
-    const input = this.inputBuffer.addInput(playerId, 'jump');
+    const input = this.inputBuffer.addInput('jump');
     this.networkService.sendInput(input);
   }
 
   private handleDuckInput(): void {
-    const playerId = this.gameSession.getPlayerId();
-    if (!playerId) return;
-
-    const input = this.inputBuffer.addInput(playerId, 'duck');
+    const input = this.inputBuffer.addInput('duck');
     this.networkService.sendInput(input);
   }
 
   private handleGameUpdate(snapshot: GameSnapshot): void {
+    // Validate snapshot structure
+    if (!snapshot || !Array.isArray(snapshot.players) || !Array.isArray(snapshot.obstacles)) {
+      return;
+    }
+
+    // Cap arrays to prevent denial-of-service
+    const players = snapshot.players.slice(0, MAX_PLAYERS);
+    const obstaclesData = snapshot.obstacles.slice(0, MAX_OBSTACLES);
+
     const myPlayerId = this.gameSession.getPlayerId();
 
     // Update players
-    for (const playerData of snapshot.players) {
+    for (const playerData of players) {
+      if (!playerData.playerId || !playerData.position) continue;
+
       const isLocalPlayer = playerData.playerId === myPlayerId;
 
       if (!this.players.has(playerData.playerId)) {
-        // Create new player sprite
         const playerSprite = new PlayerSprite(
           this,
           playerData.playerId,
           playerData.position.x,
-          this.groundY - playerData.position.y,
+          GROUND_Y - playerData.position.y,
           isLocalPlayer
         );
         this.players.set(playerData.playerId, playerSprite);
       }
 
-      // Update existing player
       const playerSprite = this.players.get(playerData.playerId)!;
-
-      // Convert server Y (0 = ground) to screen Y (groundY = ground, up is negative)
-      const screenY = this.groundY - playerData.position.y;
+      const screenY = GROUND_Y - playerData.position.y;
 
       playerSprite.updatePosition(
         { x: playerData.position.x, y: screenY },
         playerData.velocity
       );
 
-      // Check if eliminated
-      if (playerData.state === 'ELIMINATED') {
+      if (playerData.state === PlayerState.ELIMINATED) {
         playerSprite.eliminate();
       }
 
-      // Update score if local player
       if (isLocalPlayer && playerData.score !== this.currentScore) {
         this.currentScore = playerData.score;
         this.scoreText.setText(`Score: ${this.currentScore}`);
       }
     }
 
-    // Remove disconnected players
+    // Remove disconnected players using Set for O(n) instead of O(n*m)
+    this.activeIdSet.clear();
+    for (const p of players) {
+      this.activeIdSet.add(p.playerId);
+    }
     for (const [playerId, sprite] of this.players.entries()) {
-      const playerExists = snapshot.players.some((p) => p.playerId === playerId);
-      if (!playerExists) {
+      if (!this.activeIdSet.has(playerId)) {
         sprite.destroy();
         this.players.delete(playerId);
       }
     }
 
     // Update obstacles
-    for (const obstacleData of snapshot.obstacles) {
+    for (const obstacleData of obstaclesData) {
+      if (!obstacleData.id || !obstacleData.position) continue;
+
       if (!this.obstacles.has(obstacleData.id)) {
-        // Create new obstacle sprite
-        const screenY = this.groundY - obstacleData.position.y;
+        const screenY = GROUND_Y - obstacleData.position.y;
         const obstacleSprite = new ObstacleSprite(
           this,
           obstacleData.id,
@@ -175,19 +207,38 @@ export class GameScene extends Phaser.Scene {
         this.obstacles.set(obstacleData.id, obstacleSprite);
       }
 
-      // Update existing obstacle
       const obstacleSprite = this.obstacles.get(obstacleData.id)!;
-      const screenY = this.groundY - obstacleData.position.y;
+      const screenY = GROUND_Y - obstacleData.position.y;
       obstacleSprite.updatePosition({ x: obstacleData.position.x, y: screenY });
     }
 
-    // Remove off-screen obstacles
+    // Remove off-screen obstacles using Set
+    this.activeIdSet.clear();
+    for (const o of obstaclesData) {
+      this.activeIdSet.add(o.id);
+    }
     for (const [obstacleId, sprite] of this.obstacles.entries()) {
-      const obstacleExists = snapshot.obstacles.some((o) => o.id === obstacleId);
-      if (!obstacleExists) {
+      if (!this.activeIdSet.has(obstacleId)) {
         sprite.destroy();
         this.obstacles.delete(obstacleId);
       }
     }
+  }
+
+  shutdown() {
+    // Clean up network listeners
+    this.networkService.off('game_update', this.onGameUpdate);
+    this.networkService.off('match_ended', this.onMatchEnded);
+
+    // Clean up game objects
+    for (const [, sprite] of this.players) {
+      sprite.destroy();
+    }
+    this.players.clear();
+
+    for (const [, sprite] of this.obstacles) {
+      sprite.destroy();
+    }
+    this.obstacles.clear();
   }
 }

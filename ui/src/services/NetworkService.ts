@@ -8,6 +8,7 @@ import type {
   PlayerLeftData,
   PlayerReadyData,
   PlayerInput,
+  ServerEventMap,
 } from '../types';
 
 type EventCallback<T> = (data: T) => void;
@@ -16,38 +17,46 @@ export class NetworkService {
   private socket: Socket | null = null;
   private serverUrl: string;
   private isConnected = false;
-  private eventHandlers: Map<string, EventCallback<any>[]> = new Map();
+  private token: string | null = null;
+  private eventHandlers: Map<string, EventCallback<unknown>[]> = new Map();
 
-  constructor(serverUrl: string = 'http://localhost:3000') {
-    this.serverUrl = serverUrl;
+  constructor(serverUrl?: string) {
+    this.serverUrl = serverUrl || import.meta.env.VITE_SERVER_URL || 'http://localhost:3000';
   }
 
-  public connect(): Promise<void> {
+  public connect(token: string): Promise<void> {
+    this.token = token;
+
     return new Promise((resolve, reject) => {
       this.socket = io(this.serverUrl, {
         transports: ['websocket'],
         reconnection: true,
         reconnectionAttempts: 5,
         reconnectionDelay: 1000,
+        auth: { token },
       });
 
       this.socket.on('connect', () => {
-        console.log('✅ Connected to game server');
         this.isConnected = true;
         resolve();
       });
 
       this.socket.on('disconnect', () => {
-        console.log('❌ Disconnected from game server');
         this.isConnected = false;
       });
 
       this.socket.on('connect_error', (error) => {
-        console.error('Connection error:', error);
         reject(error);
       });
 
-      // Register server event listeners
+      // Re-authenticate on reconnection
+      this.socket.io.on('reconnect', () => {
+        this.isConnected = true;
+        if (this.token) {
+          this.authenticate(this.token);
+        }
+      });
+
       this.registerServerEvents();
     });
   }
@@ -56,77 +65,80 @@ export class NetworkService {
     if (!this.socket) return;
 
     this.socket.on('authenticated', (data: AuthenticatedData) => {
-      this.emit('authenticated', data);
+      this.emitLocal('authenticated', data);
     });
 
     this.socket.on('auth_error', (data: { message: string }) => {
-      this.emit('auth_error', data);
+      this.emitLocal('auth_error', data);
     });
 
     this.socket.on('player_joined', (data: PlayerJoinedData) => {
-      this.emit('player_joined', data);
+      this.emitLocal('player_joined', data);
     });
 
     this.socket.on('player_left', (data: PlayerLeftData) => {
-      this.emit('player_left', data);
+      this.emitLocal('player_left', data);
     });
 
     this.socket.on('player_ready', (data: PlayerReadyData) => {
-      this.emit('player_ready', data);
+      this.emitLocal('player_ready', data);
     });
 
     this.socket.on('match_starting', (data: MatchStartingData) => {
-      this.emit('match_starting', data);
+      this.emitLocal('match_starting', data);
     });
 
     this.socket.on('game_update', (data: GameSnapshot) => {
-      this.emit('game_update', data);
+      this.emitLocal('game_update', data);
     });
 
     this.socket.on('match_ended', (data: MatchResult) => {
-      this.emit('match_ended', data);
+      this.emitLocal('match_ended', data);
     });
   }
 
   public authenticate(token: string): void {
-    if (!this.socket) {
-      throw new Error('Socket not connected');
-    }
+    if (!this.socket || !this.isConnected) return;
+    this.token = token;
     this.socket.emit('authenticate', { token });
   }
 
   public setPlayerReady(): void {
-    if (!this.socket) {
-      throw new Error('Socket not connected');
-    }
+    if (!this.socket || !this.isConnected) return;
     this.socket.emit('player_ready');
   }
 
   public sendInput(input: PlayerInput): void {
-    if (!this.socket) {
-      throw new Error('Socket not connected');
-    }
+    if (!this.socket || !this.isConnected) return;
     this.socket.emit('player_input', input);
   }
 
-  public on<T>(event: string, callback: EventCallback<T>): void {
+  public on<K extends keyof ServerEventMap>(event: K, callback: EventCallback<ServerEventMap[K]>): void {
     if (!this.eventHandlers.has(event)) {
       this.eventHandlers.set(event, []);
     }
-    this.eventHandlers.get(event)!.push(callback);
+    this.eventHandlers.get(event)!.push(callback as EventCallback<unknown>);
   }
 
-  public off(event: string, callback: EventCallback<any>): void {
+  public off<K extends keyof ServerEventMap>(event: K, callback: EventCallback<ServerEventMap[K]>): void {
     const handlers = this.eventHandlers.get(event);
     if (handlers) {
-      const index = handlers.indexOf(callback);
+      const index = handlers.indexOf(callback as EventCallback<unknown>);
       if (index > -1) {
         handlers.splice(index, 1);
       }
     }
   }
 
-  private emit<T>(event: string, data: T): void {
+  public removeAllListeners(event?: keyof ServerEventMap): void {
+    if (event) {
+      this.eventHandlers.delete(event);
+    } else {
+      this.eventHandlers.clear();
+    }
+  }
+
+  private emitLocal<K extends keyof ServerEventMap>(event: K, data: ServerEventMap[K]): void {
     const handlers = this.eventHandlers.get(event);
     if (handlers) {
       handlers.forEach((handler) => handler(data));
@@ -139,6 +151,8 @@ export class NetworkService {
       this.socket = null;
       this.isConnected = false;
     }
+    this.eventHandlers.clear();
+    this.token = null;
   }
 
   public getConnectionStatus(): boolean {

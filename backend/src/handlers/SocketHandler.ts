@@ -232,11 +232,8 @@ export class SocketHandler {
         return;
       }
 
-      // Ensure input is for the correct player
-      if (input.playerId !== playerId) {
-        console.warn(`Player ${playerId} sent input for ${input.playerId}`);
-        return;
-      }
+      // Server authoritatively sets playerId from authenticated socket session
+      input.playerId = playerId;
 
       // Process input through physics engine
       this.matchManager.getPhysicsEngine().processPlayerInput(match, input);

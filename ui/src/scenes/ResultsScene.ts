@@ -29,6 +29,16 @@ export class ResultsScene extends Phaser.Scene {
       fontStyle: 'bold',
     }).setOrigin(0.5);
 
+    // Validate result data
+    if (!this.result || !Array.isArray(this.result.players)) {
+      this.add.text(centerX, centerY, 'Error loading results', {
+        fontSize: '24px',
+        color: '#ff0000',
+      }).setOrigin(0.5);
+      this.addPlayAgainButton(centerX, centerY + 100);
+      return;
+    }
+
     // Check if local player won
     const myPlayerId = this.gameSession.getPlayerId();
     const myResult = this.result.players.find((p) => p.playerId === myPlayerId);
@@ -36,7 +46,7 @@ export class ResultsScene extends Phaser.Scene {
 
     // Winner announcement
     if (isWinner) {
-      this.add.text(centerX, 140, '🏆 YOU WON! 🏆', {
+      this.add.text(centerX, 140, 'YOU WON!', {
         fontSize: '32px',
         color: '#00ff00',
         fontStyle: 'bold',
@@ -67,11 +77,11 @@ export class ResultsScene extends Phaser.Scene {
       const rank = player.ranking;
       const name = isMe ? 'YOU' : player.playerId.substring(0, 10);
       const score = player.score;
-      const winnings = player.winnings.toFixed(2);
+      const winnings = (typeof player.winnings === 'number') ? player.winnings.toFixed(2) : '0.00';
 
-      const rankEmoji = rank === 1 ? '🥇' : rank === 2 ? '🥈' : rank === 3 ? '🥉' : `${rank}.`;
+      const rankLabel = rank === 1 ? '#1' : rank === 2 ? '#2' : rank === 3 ? '#3' : `#${rank}`;
 
-      const text = `${rankEmoji} ${name} - Score: ${score} - Won: ${winnings} ${this.gameSession.getCurrency()}`;
+      const text = `${rankLabel} ${name} - Score: ${score} - Won: ${winnings} ${this.gameSession.getCurrency()}`;
 
       this.add.text(centerX, yPos + (index * 35), text, {
         fontSize: '18px',
@@ -84,8 +94,9 @@ export class ResultsScene extends Phaser.Scene {
     // Your winnings
     if (myResult) {
       yPos += sortedPlayers.length * 35 + 40;
+      const winningsAmount = (typeof myResult.winnings === 'number') ? myResult.winnings.toFixed(2) : '0.00';
 
-      this.add.text(centerX, yPos, `Your Winnings: ${myResult.winnings.toFixed(2)} ${this.gameSession.getCurrency()}`, {
+      this.add.text(centerX, yPos, `Your Winnings: ${winningsAmount} ${this.gameSession.getCurrency()}`, {
         fontSize: '24px',
         color: myResult.winnings > 0 ? '#00ff00' : '#ff0000',
         fontStyle: 'bold',
@@ -95,18 +106,21 @@ export class ResultsScene extends Phaser.Scene {
     }
 
     // Play again button
-    const playAgainBtn = this.add.rectangle(centerX, centerY + 180, 200, 50, 0x0066cc);
+    this.addPlayAgainButton(centerX, centerY + 180);
+  }
+
+  private addPlayAgainButton(x: number, y: number): void {
+    const playAgainBtn = this.add.rectangle(x, y, 200, 50, 0x0066cc);
     playAgainBtn.setInteractive({ useHandCursor: true });
     playAgainBtn.setStrokeStyle(2, 0xffffff);
 
-    this.add.text(centerX, centerY + 180, 'Play Again', {
+    this.add.text(x, y, 'Play Again', {
       fontSize: '20px',
       color: '#ffffff',
       fontStyle: 'bold',
     }).setOrigin(0.5);
 
     playAgainBtn.on('pointerdown', () => {
-      // Reset session and restart
       this.gameSession.reset();
       this.scene.start('BootScene');
     });

@@ -11,13 +11,6 @@ const config: Phaser.Types.Core.GameConfig = {
   height: 600,
   parent: 'game-container',
   backgroundColor: '#87CEEB',
-  physics: {
-    default: 'arcade',
-    arcade: {
-      gravity: { y: 0, x: 0 },
-      debug: false,
-    },
-  },
   scene: [BootScene, WaitingScene, GameScene, ResultsScene],
   scale: {
     mode: Phaser.Scale.FIT,
@@ -35,10 +28,3 @@ game.events.once('ready', () => {
     loadingElement.classList.add('hidden');
   }
 });
-
-// Log game version
-console.log('🦖 Dino Game UI v1.0.0');
-console.log('Phaser Version:', Phaser.VERSION);
-
-// Export for debugging
-(window as any).game = game;

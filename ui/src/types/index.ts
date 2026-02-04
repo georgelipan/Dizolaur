@@ -43,8 +43,8 @@ export enum MatchState {
   FINISHED = 'FINISHED',
 }
 
+// PlayerInput no longer includes playerId - server determines identity from socket session
 export interface PlayerInput {
-  playerId: string;
   timestamp: number;
   action: 'jump' | 'duck';
   sequenceNumber: number;
@@ -64,7 +64,6 @@ export interface MatchResult {
   winnerId: string | null;
   players: Array<{
     playerId: string;
-    platformUserId: string;
     score: number;
     ranking: number;
     winnings: number;
@@ -87,6 +86,8 @@ export interface AuthenticatedData {
   playerId: string;
   matchId: string;
   matchState: MatchState;
+  betAmount: number;
+  currency: string;
   players: Array<{
     id: string;
     state: PlayerState;
@@ -111,4 +112,16 @@ export interface PlayerLeftData {
 
 export interface PlayerReadyData {
   playerId: string;
+}
+
+// Typed event map for NetworkService
+export interface ServerEventMap {
+  authenticated: AuthenticatedData;
+  auth_error: { message: string };
+  player_joined: PlayerJoinedData;
+  player_left: PlayerLeftData;
+  player_ready: PlayerReadyData;
+  match_starting: MatchStartingData;
+  game_update: GameSnapshot;
+  match_ended: MatchResult;
 }
