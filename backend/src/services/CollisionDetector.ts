@@ -1,17 +1,16 @@
 import type { Player } from '../models/Player.js';
 import type { Obstacle } from '../models/Obstacle.js';
+import type { GameConfig } from '../types/index.js';
 
 export class CollisionDetector {
-  // Dino hitbox dimensions (simplified)
-  private readonly DINO_WIDTH = 40;
-  private readonly DINO_HEIGHT = 50;
+  constructor(private config: GameConfig) {}
 
   public checkCollision(player: Player, obstacle: Obstacle): boolean {
-    // Get player bounds
+    // Get player bounds using config dimensions
     const playerBounds = {
       left: player.position.x,
-      right: player.position.x + this.DINO_WIDTH,
-      top: player.position.y + this.DINO_HEIGHT,
+      right: player.position.x + this.config.playerWidth,
+      top: player.position.y + this.config.playerHeight,
       bottom: player.position.y,
     };
 

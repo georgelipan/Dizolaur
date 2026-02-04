@@ -4,12 +4,6 @@ import { MatchState, PlayerState } from '../types/index.js';
 import { CollisionDetector } from './CollisionDetector.js';
 
 export class PhysicsEngine {
-  private collisionDetector: CollisionDetector;
-
-  constructor() {
-    this.collisionDetector = new CollisionDetector();
-  }
-
   public processPlayerInput(match: Match, input: PlayerInput): void {
     const player = match.getPlayer(input.playerId);
     if (!player || player.state !== PlayerState.PLAYING) {
@@ -64,25 +58,24 @@ export class PhysicsEngine {
     // Update match state
     match.update(Date.now());
 
+    // Create collision detector with match-specific config
+    const collisionDetector = new CollisionDetector(match.config);
+
     // Check collisions for all active players
     for (const player of match.getActivePlayers()) {
       for (const obstacle of match.obstacles.values()) {
         // Check collision
-        if (this.collisionDetector.checkCollision(player, obstacle)) {
+        if (collisionDetector.checkCollision(player, obstacle)) {
           player.eliminate();
           console.log(`Player ${player.id} eliminated by collision`);
         }
 
         // Check if player passed obstacle (for bonus scoring)
-        if (this.collisionDetector.checkObstaclePassed(player, obstacle)) {
+        if (collisionDetector.checkObstaclePassed(player, obstacle)) {
           obstacle.passed = true;
           player.incrementScore(10); // Bonus points for passing obstacle
         }
       }
     }
-  }
-
-  public getCollisionDetector(): CollisionDetector {
-    return this.collisionDetector;
   }
 }

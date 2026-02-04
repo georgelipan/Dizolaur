@@ -94,7 +94,7 @@ export class Match {
     // Initialize all players to playing state
     for (const player of this.players.values()) {
       player.startPlaying();
-      player.position = { x: 50, y: 0 }; // Starting position
+      player.position = { x: this.config.playerStartX, y: this.config.playerStartY };
       player.velocity = { x: 0, y: 0 };
     }
 
@@ -138,13 +138,13 @@ export class Match {
 
   public spawnObstacle(): void {
     const obstacleId = `obs_${this.id}_${this.obstacleIdCounter++}`;
-    const spawnX = 800; // Right edge of screen
+    const spawnX = this.config.obstacleSpawnX;
     const speed = this.config.dinoSpeed;
 
     // Use seeded RNG — deterministic, auditable, same for all players
     const obstacle = this.rng.nextBool(0.5)
-      ? Obstacle.createCactus(obstacleId, spawnX, speed)
-      : Obstacle.createBird(obstacleId, spawnX, 100, speed);
+      ? Obstacle.createCactus(obstacleId, spawnX, speed, this.config)
+      : Obstacle.createBird(obstacleId, spawnX, this.config.birdSpawnY, speed, this.config);
 
     this.obstacles.set(obstacleId, obstacle);
     this.logEvent('obstacle_spawned', { obstacleId, type: obstacle.type });

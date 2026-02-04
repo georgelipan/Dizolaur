@@ -1,4 +1,4 @@
-import type { Vector2D } from '../types/index.js';
+import type { Vector2D, GameConfig } from '../types/index.js';
 
 export type ObstacleType = 'cactus' | 'bird';
 
@@ -58,24 +58,24 @@ export class Obstacle {
     };
   }
 
-  public static createCactus(id: string, x: number, speed: number): Obstacle {
+  public static createCactus(id: string, x: number, speed: number, config: GameConfig): Obstacle {
     return new Obstacle(
       id,
       'cactus',
-      { x, y: 0 }, // Ground level
-      30, // width
-      50, // height
+      { x, y: config.groundY },
+      config.cactusWidth,
+      config.cactusHeight,
       { x: -speed, y: 0 }
     );
   }
 
-  public static createBird(id: string, x: number, y: number, speed: number): Obstacle {
+  public static createBird(id: string, x: number, y: number, speed: number, config: GameConfig): Obstacle {
     return new Obstacle(
       id,
       'bird',
       { x, y },
-      40, // width
-      30, // height
+      config.birdWidth,
+      config.birdHeight,
       { x: -speed, y: 0 }
     );
   }

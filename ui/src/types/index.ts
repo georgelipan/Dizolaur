@@ -57,6 +57,27 @@ export interface GameConfig {
   dinoSpeed: number;
   obstacleSpawnRate: number;
   tickRate: number;
+
+  // World dimensions
+  worldWidth: number;
+  worldHeight: number;
+  groundY: number;
+
+  // Player dimensions
+  playerWidth: number;
+  playerHeight: number;
+  playerStartX: number;
+  playerStartY: number;
+
+  // Obstacle dimensions
+  cactusWidth: number;
+  cactusHeight: number;
+  birdWidth: number;
+  birdHeight: number;
+
+  // Spawn positions
+  obstacleSpawnX: number;
+  birdSpawnY: number;
 }
 
 export interface MatchResult {

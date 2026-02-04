@@ -25,6 +25,28 @@ export class MatchManager {
       obstacleSpawnRate: 2000, // ms between spawns
       tickRate: 16, // ~60 FPS
       devMode: false,
+
+      // World dimensions
+      worldWidth: 800,
+      worldHeight: 600,
+      groundY: 0,
+
+      // Player dimensions
+      playerWidth: 40,
+      playerHeight: 50,
+      playerStartX: 50,
+      playerStartY: 0,
+
+      // Obstacle dimensions
+      cactusWidth: 30,
+      cactusHeight: 50,
+      birdWidth: 40,
+      birdHeight: 30,
+
+      // Spawn positions
+      obstacleSpawnX: 800,
+      birdSpawnY: 100,
+
       ...config,
     };
   }

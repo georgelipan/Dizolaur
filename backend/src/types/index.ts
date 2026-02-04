@@ -27,6 +27,27 @@ export interface GameConfig {
   obstacleSpawnRate: number;
   tickRate: number; // Fixed timestep in ms (e.g., 16ms = ~60 FPS)
   devMode: boolean; // Allow single-player testing
+
+  // World dimensions
+  worldWidth: number;
+  worldHeight: number;
+  groundY: number;
+
+  // Player dimensions
+  playerWidth: number;
+  playerHeight: number;
+  playerStartX: number;
+  playerStartY: number;
+
+  // Obstacle dimensions
+  cactusWidth: number;
+  cactusHeight: number;
+  birdWidth: number;
+  birdHeight: number;
+
+  // Spawn positions
+  obstacleSpawnX: number;
+  birdSpawnY: number;
 }
 
 export enum MatchState {
