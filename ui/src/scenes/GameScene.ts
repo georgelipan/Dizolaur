@@ -14,6 +14,8 @@ import { AudioManager } from '../services/AudioManager';
 import { SpectatorOverlay } from '../utils/SpectatorOverlay';
 import { AliveCounter } from '../ui/AliveCounter';
 import { EliminationBanner } from '../ui/EliminationBanner';
+import { VictorySequence } from '../sequences/VictorySequence';
+import { DefeatSequence } from '../sequences/DefeatSequence';
 
 const DUCK_THROTTLE_MS = 100;
 const MAX_PLAYERS = 10;
@@ -86,6 +88,15 @@ export class GameScene extends Phaser.Scene {
   private prevAliveCount = 0;
   private knownEliminated: Set<string> = new Set();
 
+  // Victory & Defeat sequences (F12)
+  private victorySequence: VictorySequence | null = null;
+  private defeatSequence: DefeatSequence | null = null;
+  private gameStartTime = 0;
+  private nearMissCount = 0;
+  private obstaclesClearedCount = 0;
+  private gameFrozen = false;
+  private deathReplayFrameCounter = 0;
+
   constructor() {
     super({ key: 'GameScene' });
   }
@@ -120,6 +131,13 @@ export class GameScene extends Phaser.Scene {
     this.lastSnapshotPlayers = [];
     this.prevAliveCount = 0;
     this.knownEliminated.clear();
+    this.victorySequence = null;
+    this.defeatSequence = null;
+    this.gameStartTime = Date.now();
+    this.nearMissCount = 0;
+    this.obstaclesClearedCount = 0;
+    this.gameFrozen = false;
+    this.deathReplayFrameCounter = 0;
     this.players.clear();
     this.obstacles.clear();
 
@@ -209,7 +227,50 @@ export class GameScene extends Phaser.Scene {
     };
 
     this.onMatchEnded = (result: MatchResult) => {
-      this.scene.start('ResultsScene', { result });
+      const myPlayerId = this.gameSession.getPlayerId();
+      const isWinner = myPlayerId === result.winnerId && !this.wasEliminated;
+
+      const stats = {
+        survivalTime: Date.now() - this.gameStartTime,
+        obstaclesCleared: this.obstaclesClearedCount,
+        nearMissCount: this.nearMissCount,
+      };
+
+      if (isWinner) {
+        // F12 Victory: freeze game, play cinematic, then auto-transition to results
+        this.gameFrozen = true;
+        this.isSpectating = true;
+        this.audioManager.stopMusic();
+        this.speedLines.update(0);
+
+        const myResult = result.players.find(p => p.playerId === myPlayerId);
+        this.victorySequence = new VictorySequence(
+          this,
+          this.audioManager,
+          this.config.worldWidth,
+          this.config.worldHeight,
+          {
+            winnings: myResult?.winnings || 0,
+            currency: this.gameSession.getCurrency(),
+            ...stats,
+          },
+          () => {
+            // Play Again from victory → restart immediately
+            this.gameSession.reset();
+            this.scene.start('BootScene');
+          },
+        );
+
+        // Auto-transition to full results after 6s
+        setTimeout(() => {
+          if (this.scene.isActive()) {
+            this.scene.start('ResultsScene', { result, stats });
+          }
+        }, 6000);
+      } else {
+        // Losers → results screen
+        this.scene.start('ResultsScene', { result, stats });
+      }
     };
 
     this.networkService.on('game_update', this.onGameUpdate);
@@ -266,9 +327,20 @@ export class GameScene extends Phaser.Scene {
       return;
     }
 
+    // F12: Victory freeze — stop all visual updates
+    if (this.gameFrozen) return;
+
     // Cap arrays to prevent denial-of-service
     const players = snapshot.players.slice(0, MAX_PLAYERS);
     const obstaclesData = snapshot.obstacles.slice(0, MAX_OBSTACLES);
+
+    // F12: Slow-motion death replay — apply only 1 in 3 visual updates (~0.33x speed)
+    // We still store lastSnapshotPlayers every frame for spectator data
+    if (this.deathReplayActive) {
+      this.lastSnapshotPlayers = players;
+      this.deathReplayFrameCounter++;
+      if (this.deathReplayFrameCounter % 3 !== 0) return;
+    }
 
     const myPlayerId = this.gameSession.getPlayerId();
 
@@ -343,8 +415,9 @@ export class GameScene extends Phaser.Scene {
           this.scoreText.setText(`Score: ${this.currentScore}`);
         }
 
-        // Near-miss effects
+        // Near-miss effects (F12: count for stats)
         if (playerData.nearMisses) {
+          this.nearMissCount += playerData.nearMisses.length;
           for (const nm of playerData.nearMisses) {
             const cx = this.cameras.main.centerX;
             const cy = this.cameras.main.centerY;
@@ -442,6 +515,7 @@ export class GameScene extends Phaser.Scene {
           obstacleData.position.x + obstacleData.width < playerX &&
           !this.passedObstacles.has(obstacleData.id)) {
         this.passedObstacles.add(obstacleData.id);
+        this.obstaclesClearedCount++;
         this.audioManager.playObstacleCleared();
       }
     }
@@ -466,56 +540,67 @@ export class GameScene extends Phaser.Scene {
     }
   }
 
-  /** F10: Transition into spectator mode after elimination */
+  /**
+   * F10/F12: Transition into spectator mode after elimination.
+   * Timeline (all real-time via setTimeout, not affected by Phaser timeScale):
+   *   T+0ms:    Slow-motion starts (frame-skipping in handleGameUpdate: 1-in-3 = ~0.33x)
+   *   T+1500ms: "ELIMINATED" text + desaturated overlay (DefeatSequence)
+   *   T+2000ms: End slow-mo, zoom out, show spectator overlay (if players remain)
+   */
   private enterSpectatorMode(): void {
     this.isSpectating = true;
     this.deathReplayActive = true;
+    this.deathReplayFrameCounter = 0;
 
-    // Phase 1: Slow-motion death replay (1.5s at 0.3x speed)
-    this.time.timeScale = 0.3;
+    // T+1500ms: Show "ELIMINATED" text with desaturated palette
+    setTimeout(() => {
+      if (!this.scene.isActive()) return;
+      this.defeatSequence = new DefeatSequence(
+        this, this.config.worldWidth, this.config.worldHeight,
+      );
+    }, 1500);
 
-    // Phase 2: After 1.5s real time, zoom out and show overlay
-    this.time.addEvent({
-      delay: 1500 / 0.3, // adjusted for timeScale
-      callback: () => {
-        this.time.timeScale = 1;
-        this.deathReplayActive = false;
+    // T+2000ms: End slow-mo, transition to spectator overlay
+    setTimeout(() => {
+      if (!this.scene.isActive()) return;
+      this.deathReplayActive = false;
 
-        // Camera zoom out to show all players
-        this.cameras.main.zoomTo(0.75, 800, 'Power2');
-        // Pan camera to center of the world
-        this.cameras.main.pan(
-          this.config.worldWidth / 2,
-          this.config.worldHeight / 2,
-          800,
-          'Power2',
-        );
+      // Camera zoom out to show all players
+      this.cameras.main.zoomTo(0.75, 800, 'Power2');
+      this.cameras.main.pan(
+        this.config.worldWidth / 2,
+        this.config.worldHeight / 2,
+        800,
+        'Power2',
+      );
 
-        // Create spectator overlay
-        const myPlayerId = this.gameSession.getPlayerId() || '';
-        this.spectatorOverlay = new SpectatorOverlay(
-          this,
-          myPlayerId,
-          this.currentScore,
-          this.config.worldWidth,
-          this.config.worldHeight,
-          () => {
-            // Play Again: go to results or restart
-            this.gameSession.reset();
-            this.scene.start('BootScene');
-          },
-        );
+      // Only show spectator overlay if there are active players to watch
+      const activePlayers = this.lastSnapshotPlayers.filter(
+        p => p.state !== PlayerState.ELIMINATED,
+      );
+      if (activePlayers.length === 0) return; // match_ended will handle transition
 
-        // Fade in overlay after a short delay for camera to settle
-        this.time.delayedCall(400, () => {
-          this.spectatorOverlay?.show();
-          // Feed initial data
-          if (this.lastSnapshotPlayers.length > 0) {
-            this.spectatorOverlay?.update(this.lastSnapshotPlayers);
-          }
-        });
-      },
-    });
+      const myPlayerId = this.gameSession.getPlayerId() || '';
+      this.spectatorOverlay = new SpectatorOverlay(
+        this,
+        myPlayerId,
+        this.currentScore,
+        this.config.worldWidth,
+        this.config.worldHeight,
+        () => {
+          this.gameSession.reset();
+          this.scene.start('BootScene');
+        },
+      );
+
+      // Fade in after camera settles
+      this.time.delayedCall(400, () => {
+        this.spectatorOverlay?.show();
+        if (this.lastSnapshotPlayers.length > 0) {
+          this.spectatorOverlay?.update(this.lastSnapshotPlayers);
+        }
+      });
+    }, 2000);
   }
 
   /** Update background color, speed lines, and motion blur based on current phase/speed */
@@ -582,10 +667,15 @@ export class GameScene extends Phaser.Scene {
     this.aliveCounter.destroy();
     this.eliminationBanner.destroy();
 
+    // Clean up victory/defeat sequences (F12)
+    this.victorySequence?.destroy();
+    this.victorySequence = null;
+    this.defeatSequence?.destroy();
+    this.defeatSequence = null;
+
     // Clean up spectator overlay (F10)
     this.spectatorOverlay?.destroy();
     this.spectatorOverlay = null;
-    this.time.timeScale = 1;
 
     // Clean up audio
     this.audioManager.destroy();
