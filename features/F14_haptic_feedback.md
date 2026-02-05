@@ -29,6 +29,6 @@ Vibratii pe mobil la actiuni si evenimente.
 - F13 (Touch Controls) — relevant doar pe mobil
 
 ## Validare
-- [ ] Vibratii la fiecare event
-- [ ] Toggle on/off functioneaza
-- [ ] Nu crasheaza pe desktop (graceful fallback)
+- [x] Vibratii la fiecare event
+- [x] Toggle on/off functioneaza
+- [x] Nu crasheaza pe desktop (graceful fallback)

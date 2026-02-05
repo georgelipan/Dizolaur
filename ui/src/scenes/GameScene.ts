@@ -17,6 +17,7 @@ import { EliminationBanner } from '../ui/EliminationBanner';
 import { VictorySequence } from '../sequences/VictorySequence';
 import { DefeatSequence } from '../sequences/DefeatSequence';
 import { TouchInputHandler } from '../services/TouchInputHandler';
+import { HapticService } from '../services/HapticService';
 
 const DUCK_THROTTLE_MS = 100;
 const MAX_PLAYERS = 10;
@@ -71,8 +72,9 @@ export class GameScene extends Phaser.Scene {
   private wasAirborne = false;
   private wasEliminated = false;
 
-  // Audio (F08)
+  // Audio (F08) & Haptics (F14)
   private audioManager!: AudioManager;
+  private haptic!: HapticService;
   private muteBtn!: Phaser.GameObjects.Text;
   private wasDucking = false;
   private passedObstacles: Set<string> = new Set();
@@ -228,10 +230,11 @@ export class GameScene extends Phaser.Scene {
     this.screenShake = new ScreenShake(this.cameras.main);
     this.particleManager = new ParticleManager(this);
 
-    // Initialize audio (F08)
+    // Initialize audio (F08) & haptics (F14)
     this.audioManager = new AudioManager();
     this.audioManager.resume();
     this.audioManager.startMusic();
+    this.haptic = new HapticService();
 
     // Mute toggle button (top-right)
     this.muteBtn = this.add.text(
@@ -275,6 +278,7 @@ export class GameScene extends Phaser.Scene {
         this.gameFrozen = true;
         this.isSpectating = true;
         this.audioManager.stopMusic();
+        this.haptic.victory();
         this.speedLines.update(0);
 
         const myResult = result.players.find(p => p.playerId === myPlayerId);
@@ -341,6 +345,7 @@ export class GameScene extends Phaser.Scene {
   private handleJumpInput(): void {
     this.audioManager.resume();
     this.audioManager.playJump();
+    this.haptic.jump();
     const input = this.inputBuffer.addInput('jump');
     this.networkService.sendInput(input);
   }
@@ -349,6 +354,7 @@ export class GameScene extends Phaser.Scene {
     if (!this.wasDucking) {
       this.audioManager.resume();
       this.audioManager.playDuck();
+      this.haptic.duck();
     }
     this.wasDucking = true;
     const input = this.inputBuffer.addInput('duck');
@@ -439,6 +445,7 @@ export class GameScene extends Phaser.Scene {
             screenY
           );
           this.audioManager.playOwnElimination();
+          this.haptic.ownElimination();
           this.audioManager.stopMusic();
           this.enterSpectatorMode();
         }
@@ -465,8 +472,10 @@ export class GameScene extends Phaser.Scene {
             if (nm.level === 'pixel_perfect') {
               this.screenShake.onPixelPerfect();
               this.audioManager.playNearMissPixelPerfect();
+              this.haptic.pixelPerfect();
             } else {
               this.audioManager.playNearMissClose();
+              this.haptic.nearMiss();
             }
           }
         }
@@ -475,6 +484,7 @@ export class GameScene extends Phaser.Scene {
       if (playerData.state === PlayerState.ELIMINATED) {
         if (!isLocalPlayer && !playerSprite.wasEliminated()) {
           this.audioManager.playOtherEliminated();
+          this.haptic.otherElimination();
         }
         playerSprite.eliminate();
       }
