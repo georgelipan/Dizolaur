@@ -34,7 +34,7 @@ Counter "N/4 ALIVE" prominent + banner dramatic la fiecare eliminare.
 - F10 (Spectator Mode) — banner-urile sunt relevante si in spectator
 
 ## Validare
-- [ ] Counter se actualizeaza la fiecare eliminare
-- [ ] Banner apare cu animatie
-- [ ] "FINAL 2" banner la ultimii 2 jucatori
-- [ ] Animatiile nu interfereaza cu gameplay-ul
+- [x] Counter se actualizeaza la fiecare eliminare
+- [x] Banner apare cu animatie
+- [x] "FINAL 2" banner la ultimii 2 jucatori
+- [x] Animatiile nu interfereaza cu gameplay-ul

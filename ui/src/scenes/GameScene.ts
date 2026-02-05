@@ -12,6 +12,8 @@ import { ScreenShake } from '../effects/ScreenShake';
 import { ParticleManager } from '../effects/ParticleManager';
 import { AudioManager } from '../services/AudioManager';
 import { SpectatorOverlay } from '../utils/SpectatorOverlay';
+import { AliveCounter } from '../ui/AliveCounter';
+import { EliminationBanner } from '../ui/EliminationBanner';
 
 const DUCK_THROTTLE_MS = 100;
 const MAX_PLAYERS = 10;
@@ -78,6 +80,12 @@ export class GameScene extends Phaser.Scene {
   private deathReplayActive = false;
   private lastSnapshotPlayers: import('../types').PlayerSnapshot[] = [];
 
+  // Elimination UI (F11)
+  private aliveCounter!: AliveCounter;
+  private eliminationBanner!: EliminationBanner;
+  private prevAliveCount = 0;
+  private knownEliminated: Set<string> = new Set();
+
   constructor() {
     super({ key: 'GameScene' });
   }
@@ -110,6 +118,8 @@ export class GameScene extends Phaser.Scene {
     this.deathReplayActive = false;
     this.spectatorOverlay = null;
     this.lastSnapshotPlayers = [];
+    this.prevAliveCount = 0;
+    this.knownEliminated.clear();
     this.players.clear();
     this.obstacles.clear();
 
@@ -184,6 +194,14 @@ export class GameScene extends Phaser.Scene {
       const muted = this.audioManager.toggleMute();
       this.muteBtn.setText(muted ? '[MUTED]' : '[SOUND]');
     });
+
+    // Alive counter & elimination banner (F11)
+    this.aliveCounter = new AliveCounter(
+      this,
+      this.config.worldWidth - 80, 52,
+      this.config.maxPlayers,
+    );
+    this.eliminationBanner = new EliminationBanner(this, this.config.worldWidth);
 
     // Network event listeners (stored for cleanup)
     this.onGameUpdate = (snapshot: GameSnapshot) => {
@@ -353,6 +371,34 @@ export class GameScene extends Phaser.Scene {
         }
         playerSprite.eliminate();
       }
+    }
+
+    // Update alive counter & elimination banners (F11)
+    const aliveNow = players.filter(p => p.state !== PlayerState.ELIMINATED).length;
+    const totalNow = players.length;
+
+    // Initialize on first snapshot
+    if (this.prevAliveCount === 0 && totalNow > 0) {
+      this.prevAliveCount = aliveNow;
+    }
+
+    // Detect newly eliminated players and show banners
+    for (const playerData of players) {
+      if (playerData.state === PlayerState.ELIMINATED && !this.knownEliminated.has(playerData.playerId)) {
+        this.knownEliminated.add(playerData.playerId);
+        const isMe = playerData.playerId === myPlayerId;
+        const name = isMe ? 'YOU' : playerData.playerId.substring(0, 10);
+        this.eliminationBanner.showElimination(name, aliveNow);
+      }
+    }
+
+    // Update counter if changed
+    if (aliveNow !== this.prevAliveCount) {
+      const localAlive = myPlayerId
+        ? players.some(p => p.playerId === myPlayerId && p.state !== PlayerState.ELIMINATED)
+        : false;
+      this.aliveCounter.update(aliveNow, localAlive);
+      this.prevAliveCount = aliveNow;
     }
 
     // Remove disconnected players using Set for O(n) instead of O(n*m)
@@ -531,6 +577,10 @@ export class GameScene extends Phaser.Scene {
     // Clean up network listeners
     this.networkService.off('game_update', this.onGameUpdate);
     this.networkService.off('match_ended', this.onMatchEnded);
+
+    // Clean up elimination UI (F11)
+    this.aliveCounter.destroy();
+    this.eliminationBanner.destroy();
 
     // Clean up spectator overlay (F10)
     this.spectatorOverlay?.destroy();
