@@ -27,36 +27,36 @@ export class MatchManager {
       devMode: false,
       hitboxForgiveness: 0.8,
 
-      // World dimensions
-      worldWidth: 800,
-      worldHeight: 600,
+      // World dimensions (16:9 mobile-first)
+      worldWidth: 960,
+      worldHeight: 540,
       groundY: 0,
 
       // Player dimensions
-      playerWidth: 40,
-      playerHeight: 50,
-      playerStartX: 50,
+      playerWidth: 48,
+      playerHeight: 64,
+      playerStartX: 60,
       playerStartY: 0,
 
       // Obstacle dimensions
-      groundSmallWidth: 30,
-      groundSmallHeight: 50,
-      groundTallWidth: 25,
-      groundTallHeight: 80,
-      groundWideWidth: 70,
-      groundWideHeight: 50,
-      airHighWidth: 40,
-      airHighHeight: 30,
-      airLowWidth: 40,
-      airLowHeight: 30,
-      airMovingWidth: 40,
-      airMovingHeight: 30,
+      groundSmallWidth: 36,
+      groundSmallHeight: 55,
+      groundTallWidth: 30,
+      groundTallHeight: 90,
+      groundWideWidth: 85,
+      groundWideHeight: 48,
+      airHighWidth: 50,
+      airHighHeight: 40,
+      airLowWidth: 55,
+      airLowHeight: 40,
+      airMovingWidth: 45,
+      airMovingHeight: 40,
 
       // Spawn positions
-      obstacleSpawnX: 800,
-      airHighSpawnY: 100,
-      airLowSpawnY: 40,
-      airMovingBaseY: 80,
+      obstacleSpawnX: 960,
+      airHighSpawnY: 95,
+      airLowSpawnY: 32,
+      airMovingBaseY: 70,
 
       // Phase thresholds (seconds)
       phase2Start: 6,

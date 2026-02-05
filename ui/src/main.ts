@@ -7,8 +7,8 @@ import { ResultsScene } from './scenes/ResultsScene';
 // Game configuration
 const config: Phaser.Types.Core.GameConfig = {
   type: Phaser.AUTO,
-  width: 800,
-  height: 600,
+  width: 960,
+  height: 540,
   parent: 'game-container',
   backgroundColor: '#87CEEB',
   scene: [BootScene, WaitingScene, GameScene, ResultsScene],
@@ -17,6 +17,15 @@ const config: Phaser.Types.Core.GameConfig = {
     autoCenter: Phaser.Scale.CENTER_BOTH,
   },
 };
+
+// Constrain container to game aspect ratio at phone-like size
+const container = document.getElementById('game-container');
+if (container) {
+  const w = config.width as number;
+  const h = config.height as number;
+  container.style.maxWidth = `${w}px`;
+  container.style.maxHeight = `${h}px`;
+}
 
 // Create game instance
 const game = new Phaser.Game(config);

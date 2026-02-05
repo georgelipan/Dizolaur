@@ -40,36 +40,36 @@ export const defaultServerConfig: ServerConfig = {
     devMode: process.env[DEV_MODE] === 'true' || process.env[NODE_ENV] !== 'production',
     hitboxForgiveness: parseFloat(process.env[HITBOX_FORGIVENESS] ?? '0.8'),
 
-    // World dimensions
-    worldWidth: parseInt(process.env[WORLD_WIDTH] ?? '800', 10),
-    worldHeight: parseInt(process.env[WORLD_HEIGHT] ?? '600', 10),
+    // World dimensions (16:9 mobile-first)
+    worldWidth: parseInt(process.env[WORLD_WIDTH] ?? '960', 10),
+    worldHeight: parseInt(process.env[WORLD_HEIGHT] ?? '540', 10),
     groundY: parseInt(process.env[GROUND_Y] ?? '0', 10),
 
     // Player dimensions
-    playerWidth: parseInt(process.env[PLAYER_WIDTH] ?? '40', 10),
-    playerHeight: parseInt(process.env[PLAYER_HEIGHT] ?? '50', 10),
-    playerStartX: parseInt(process.env[PLAYER_START_X] ?? '50', 10),
+    playerWidth: parseInt(process.env[PLAYER_WIDTH] ?? '48', 10),
+    playerHeight: parseInt(process.env[PLAYER_HEIGHT] ?? '64', 10),
+    playerStartX: parseInt(process.env[PLAYER_START_X] ?? '60', 10),
     playerStartY: parseInt(process.env[PLAYER_START_Y] ?? '0', 10),
 
     // Obstacle dimensions
-    groundSmallWidth: parseInt(process.env[GROUND_SMALL_WIDTH] ?? '30', 10),
-    groundSmallHeight: parseInt(process.env[GROUND_SMALL_HEIGHT] ?? '50', 10),
-    groundTallWidth: parseInt(process.env[GROUND_TALL_WIDTH] ?? '25', 10),
-    groundTallHeight: parseInt(process.env[GROUND_TALL_HEIGHT] ?? '80', 10),
-    groundWideWidth: parseInt(process.env[GROUND_WIDE_WIDTH] ?? '70', 10),
-    groundWideHeight: parseInt(process.env[GROUND_WIDE_HEIGHT] ?? '50', 10),
-    airHighWidth: parseInt(process.env[AIR_HIGH_WIDTH] ?? '40', 10),
-    airHighHeight: parseInt(process.env[AIR_HIGH_HEIGHT] ?? '30', 10),
-    airLowWidth: parseInt(process.env[AIR_LOW_WIDTH] ?? '40', 10),
-    airLowHeight: parseInt(process.env[AIR_LOW_HEIGHT] ?? '30', 10),
-    airMovingWidth: parseInt(process.env[AIR_MOVING_WIDTH] ?? '40', 10),
-    airMovingHeight: parseInt(process.env[AIR_MOVING_HEIGHT] ?? '30', 10),
+    groundSmallWidth: parseInt(process.env[GROUND_SMALL_WIDTH] ?? '36', 10),
+    groundSmallHeight: parseInt(process.env[GROUND_SMALL_HEIGHT] ?? '55', 10),
+    groundTallWidth: parseInt(process.env[GROUND_TALL_WIDTH] ?? '30', 10),
+    groundTallHeight: parseInt(process.env[GROUND_TALL_HEIGHT] ?? '90', 10),
+    groundWideWidth: parseInt(process.env[GROUND_WIDE_WIDTH] ?? '85', 10),
+    groundWideHeight: parseInt(process.env[GROUND_WIDE_HEIGHT] ?? '48', 10),
+    airHighWidth: parseInt(process.env[AIR_HIGH_WIDTH] ?? '50', 10),
+    airHighHeight: parseInt(process.env[AIR_HIGH_HEIGHT] ?? '40', 10),
+    airLowWidth: parseInt(process.env[AIR_LOW_WIDTH] ?? '55', 10),
+    airLowHeight: parseInt(process.env[AIR_LOW_HEIGHT] ?? '40', 10),
+    airMovingWidth: parseInt(process.env[AIR_MOVING_WIDTH] ?? '45', 10),
+    airMovingHeight: parseInt(process.env[AIR_MOVING_HEIGHT] ?? '40', 10),
 
     // Spawn positions
-    obstacleSpawnX: parseInt(process.env[OBSTACLE_SPAWN_X] ?? '800', 10),
-    airHighSpawnY: parseInt(process.env[AIR_HIGH_SPAWN_Y] ?? '100', 10),
-    airLowSpawnY: parseInt(process.env[AIR_LOW_SPAWN_Y] ?? '40', 10),
-    airMovingBaseY: parseInt(process.env[AIR_MOVING_BASE_Y] ?? '80', 10),
+    obstacleSpawnX: parseInt(process.env[OBSTACLE_SPAWN_X] ?? '960', 10),
+    airHighSpawnY: parseInt(process.env[AIR_HIGH_SPAWN_Y] ?? '95', 10),
+    airLowSpawnY: parseInt(process.env[AIR_LOW_SPAWN_Y] ?? '32', 10),
+    airMovingBaseY: parseInt(process.env[AIR_MOVING_BASE_Y] ?? '70', 10),
 
     // Phase thresholds (seconds)
     phase2Start: parseInt(process.env[PHASE_2_START] ?? '6', 10),

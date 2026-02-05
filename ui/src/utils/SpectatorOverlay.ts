@@ -21,7 +21,6 @@ export class SpectatorOverlay {
   private spectatingLabel: Phaser.GameObjects.Text;
 
   private myPlayerId: string;
-  private myFinalScore: number;
   private visible = false;
 
   constructor(
@@ -34,8 +33,6 @@ export class SpectatorOverlay {
   ) {
     this.scene = scene;
     this.myPlayerId = myPlayerId;
-    this.myFinalScore = myFinalScore;
-
     this.container = scene.add.container(0, 0);
     this.container.setDepth(100);
     this.container.setAlpha(0);
