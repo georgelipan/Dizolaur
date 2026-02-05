@@ -37,7 +37,7 @@ Secvente cinematice la sfarsitul meciului — victorie si infrangere.
 - F10 (Spectator Mode) — defeat transitioneaza la spectator
 
 ## Validare
-- [ ] Victory sequence completa cu confetti si count-up
-- [ ] Defeat replay in slow motion
-- [ ] Play Again functioneaza instant (same bet pre-filled)
-- [ ] Auto-return la lobby dupa 15s
+- [x] Victory sequence completa cu confetti si count-up
+- [x] Defeat replay in slow motion
+- [x] Play Again functioneaza instant (same bet pre-filled)
+- [x] Auto-return la lobby dupa 15s
