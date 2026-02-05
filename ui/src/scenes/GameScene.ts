@@ -11,6 +11,7 @@ import { SpeedLines } from '../effects/SpeedLines';
 import { ScreenShake } from '../effects/ScreenShake';
 import { ParticleManager } from '../effects/ParticleManager';
 import { AudioManager } from '../services/AudioManager';
+import { SpectatorOverlay } from '../utils/SpectatorOverlay';
 
 const DUCK_THROTTLE_MS = 100;
 const MAX_PLAYERS = 10;
@@ -71,6 +72,12 @@ export class GameScene extends Phaser.Scene {
   private wasDucking = false;
   private passedObstacles: Set<string> = new Set();
 
+  // Spectator mode (F10)
+  private spectatorOverlay: SpectatorOverlay | null = null;
+  private isSpectating = false;
+  private deathReplayActive = false;
+  private lastSnapshotPlayers: import('../types').PlayerSnapshot[] = [];
+
   constructor() {
     super({ key: 'GameScene' });
   }
@@ -99,6 +106,10 @@ export class GameScene extends Phaser.Scene {
     this.wasEliminated = false;
     this.wasDucking = false;
     this.passedObstacles.clear();
+    this.isSpectating = false;
+    this.deathReplayActive = false;
+    this.spectatorOverlay = null;
+    this.lastSnapshotPlayers = [];
     this.players.clear();
     this.obstacles.clear();
 
@@ -192,6 +203,9 @@ export class GameScene extends Phaser.Scene {
 
   update(_time: number, _delta: number) {
     if (!this.cursors || !this.spaceKey) return;
+
+    // No input in spectator mode
+    if (this.isSpectating) return;
 
     // Handle jump input (JustDown = frame-rate independent)
     if (Phaser.Input.Keyboard.JustDown(this.spaceKey) ||
@@ -292,7 +306,7 @@ export class GameScene extends Phaser.Scene {
 
         this.wasAirborne = isAirborne;
 
-        // Elimination effects
+        // Elimination effects + spectator transition (F10)
         if (playerData.state === PlayerState.ELIMINATED && !this.wasEliminated) {
           this.wasEliminated = true;
           this.screenShake.onElimination();
@@ -302,6 +316,7 @@ export class GameScene extends Phaser.Scene {
           );
           this.audioManager.playOwnElimination();
           this.audioManager.stopMusic();
+          this.enterSpectatorMode();
         }
 
         // Score update
@@ -397,6 +412,64 @@ export class GameScene extends Phaser.Scene {
         this.passedObstacles.delete(obstacleId);
       }
     }
+
+    // Update spectator overlay with live data (F10)
+    this.lastSnapshotPlayers = players;
+    if (this.spectatorOverlay && !this.deathReplayActive) {
+      this.spectatorOverlay.update(players);
+    }
+  }
+
+  /** F10: Transition into spectator mode after elimination */
+  private enterSpectatorMode(): void {
+    this.isSpectating = true;
+    this.deathReplayActive = true;
+
+    // Phase 1: Slow-motion death replay (1.5s at 0.3x speed)
+    this.time.timeScale = 0.3;
+
+    // Phase 2: After 1.5s real time, zoom out and show overlay
+    this.time.addEvent({
+      delay: 1500 / 0.3, // adjusted for timeScale
+      callback: () => {
+        this.time.timeScale = 1;
+        this.deathReplayActive = false;
+
+        // Camera zoom out to show all players
+        this.cameras.main.zoomTo(0.75, 800, 'Power2');
+        // Pan camera to center of the world
+        this.cameras.main.pan(
+          this.config.worldWidth / 2,
+          this.config.worldHeight / 2,
+          800,
+          'Power2',
+        );
+
+        // Create spectator overlay
+        const myPlayerId = this.gameSession.getPlayerId() || '';
+        this.spectatorOverlay = new SpectatorOverlay(
+          this,
+          myPlayerId,
+          this.currentScore,
+          this.config.worldWidth,
+          this.config.worldHeight,
+          () => {
+            // Play Again: go to results or restart
+            this.gameSession.reset();
+            this.scene.start('BootScene');
+          },
+        );
+
+        // Fade in overlay after a short delay for camera to settle
+        this.time.delayedCall(400, () => {
+          this.spectatorOverlay?.show();
+          // Feed initial data
+          if (this.lastSnapshotPlayers.length > 0) {
+            this.spectatorOverlay?.update(this.lastSnapshotPlayers);
+          }
+        });
+      },
+    });
   }
 
   /** Update background color, speed lines, and motion blur based on current phase/speed */
@@ -458,6 +531,11 @@ export class GameScene extends Phaser.Scene {
     // Clean up network listeners
     this.networkService.off('game_update', this.onGameUpdate);
     this.networkService.off('match_ended', this.onMatchEnded);
+
+    // Clean up spectator overlay (F10)
+    this.spectatorOverlay?.destroy();
+    this.spectatorOverlay = null;
+    this.time.timeScale = 1;
 
     // Clean up audio
     this.audioManager.destroy();
