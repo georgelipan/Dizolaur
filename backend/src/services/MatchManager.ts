@@ -53,7 +53,7 @@ export class MatchManager {
       airMovingHeight: 40,
 
       // Spawn positions
-      obstacleSpawnX: 960,
+      obstacleSpawnX: 1060,
       airHighSpawnY: 95,
       airLowSpawnY: 32,
       airMovingBaseY: 70,
