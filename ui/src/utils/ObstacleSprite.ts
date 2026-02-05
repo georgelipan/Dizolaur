@@ -3,16 +3,23 @@ import type { Vector2D } from '../types';
 
 type ObstacleType = 'ground_small' | 'ground_tall' | 'ground_wide' | 'air_high' | 'air_low' | 'air_moving';
 
-const OBSTACLE_COLORS: Record<ObstacleType, number> = {
-  ground_small: 0x00aa00,
-  ground_tall: 0x006600,
-  ground_wide: 0x008800,
-  air_high: 0xaa0000,
-  air_low: 0xcc4400,
-  air_moving: 0xff0066,
+const OBSTACLE_TEXTURES: Record<ObstacleType, string> = {
+  ground_small: 'ground_small',
+  ground_tall: 'ground_tall',
+  ground_wide: 'ground_wide',
+  air_high: 'air_high_f1',
+  air_low: 'air_low_f1',
+  air_moving: 'air_moving_f1',
 };
 
-export class ObstacleSprite extends Phaser.GameObjects.Rectangle {
+const AIR_ANIMATIONS: Partial<Record<ObstacleType, string>> = {
+  air_high: 'air_high_anim',
+  air_low: 'air_low_anim',
+  air_moving: 'air_moving_anim',
+};
+
+export class ObstacleSprite {
+  private sprite: Phaser.GameObjects.Sprite;
   private obstacleId: string;
   private obstacleType: ObstacleType;
 
@@ -24,22 +31,29 @@ export class ObstacleSprite extends Phaser.GameObjects.Rectangle {
     height: number,
     type: ObstacleType
   ) {
-    const color = OBSTACLE_COLORS[type] ?? 0xffffff;
-    super(scene, position.x, position.y, width, height, color);
-
     this.obstacleId = id;
     this.obstacleType = type;
 
-    // Add to scene
-    scene.add.existing(this);
+    const textureKey = OBSTACLE_TEXTURES[type] ?? 'ground_small';
+    this.sprite = scene.add.sprite(position.x, position.y, textureKey);
+    this.sprite.setOrigin(0, 1);
+    this.sprite.setDisplaySize(width, height);
+    this.sprite.setDepth(10);
 
-    // Set origin to bottom left for ground alignment
-    this.setOrigin(0, 1);
+    // Play animation for air obstacles (2-frame loop)
+    const animKey = AIR_ANIMATIONS[type];
+    if (animKey) {
+      this.sprite.play(animKey);
+    }
   }
 
   public updatePosition(position: Vector2D): void {
-    this.x = position.x;
-    this.y = position.y;
+    this.sprite.x = position.x;
+    this.sprite.y = position.y;
+  }
+
+  public setScale(x: number, y: number): void {
+    this.sprite.setScale(x, y);
   }
 
   public getObstacleId(): string {
@@ -48,5 +62,9 @@ export class ObstacleSprite extends Phaser.GameObjects.Rectangle {
 
   public getType(): ObstacleType {
     return this.obstacleType;
+  }
+
+  public destroy(): void {
+    this.sprite.destroy();
   }
 }

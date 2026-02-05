@@ -67,8 +67,10 @@ export class GameScene extends Phaser.Scene {
   private speedLines!: SpeedLines;
   private screenShake!: ScreenShake;
   private particleManager!: ParticleManager;
-  private groundRect!: Phaser.GameObjects.Rectangle;
+  private bgFar!: Phaser.GameObjects.TileSprite;
+  private groundTile!: Phaser.GameObjects.TileSprite;
   private currentPhase = 1;
+  private currentSpeed = 200;
   private wasAirborne = false;
   private wasEliminated = false;
 
@@ -150,16 +152,20 @@ export class GameScene extends Phaser.Scene {
     // Setup camera
     this.cameras.main.setBackgroundColor('#87CEEB');
 
-    // Draw ground — extra wide to cover screens wider than 16:9 (F15)
-    const groundPad = 200;
-    this.groundRect = this.add.rectangle(
-      this.config.worldWidth / 2,
-      this.groundYScreen + 25,
-      this.config.worldWidth + groundPad * 2,
-      50,
-      0x8B4513
+    // Scrolling background (parallax far layer)
+    this.bgFar = this.add.tileSprite(0, 0, this.config.worldWidth, 490, 'bg_far');
+    this.bgFar.setOrigin(0, 0);
+    this.bgFar.setDepth(0);
+
+    // Scrolling ground tiles
+    const groundHeight = this.config.worldHeight - this.groundYScreen;
+    this.groundTile = this.add.tileSprite(
+      0, this.groundYScreen,
+      this.config.worldWidth, groundHeight,
+      'ground_tile'
     );
-    this.groundRect.setOrigin(0.5);
+    this.groundTile.setOrigin(0, 0);
+    this.groundTile.setDepth(1);
 
     // Setup keyboard input
     if (this.input.keyboard) {
@@ -346,7 +352,12 @@ export class GameScene extends Phaser.Scene {
     this.events.once('shutdown', this.shutdown, this);
   }
 
-  update(_time: number, _delta: number) {
+  update(_time: number, delta: number) {
+    // Scroll background and ground tiles
+    const px = this.currentSpeed * delta / 1000;
+    this.groundTile.tilePositionX += px;
+    this.bgFar.tilePositionX += px * 0.3;
+
     if (!this.cursors || !this.spaceKey) return;
 
     // No input in spectator mode
@@ -678,6 +689,8 @@ export class GameScene extends Phaser.Scene {
 
   /** Update background color, speed lines, and motion blur based on current phase/speed */
   private updatePhaseEffects(phase: number, speed: number): void {
+    this.currentSpeed = speed;
+
     // Background color shift (lerp between phases over ~3 seconds worth of snapshots)
     const phaseIdx = Math.max(0, Math.min(4, phase - 1));
     if (phase !== this.currentPhase) {
@@ -687,37 +700,25 @@ export class GameScene extends Phaser.Scene {
     // Update music tempo (F08)
     this.audioManager.updateTempo(phase);
 
-    // Smooth lerp toward target color
+    // Smooth lerp toward target sky color
     const skyColor = PHASE_COLORS.sky[phaseIdx];
-    const groundColor = PHASE_COLORS.ground[phaseIdx];
 
-    // If between phases, lerp with neighbor
     let targetSky = skyColor;
-    let targetGround = groundColor;
     if (phaseIdx > 0) {
-      // Blend from previous phase color
       const prevSky = PHASE_COLORS.sky[phaseIdx - 1];
-      const prevGround = PHASE_COLORS.ground[phaseIdx - 1];
-      // Use a simple time-based lerp (converges over multiple frames)
       const currentBg = this.cameras.main.backgroundColor;
       const currentSkyHex = (currentBg.red << 16) | (currentBg.green << 8) | currentBg.blue;
 
-      // Lerp 5% per frame toward target
       targetSky = lerpColor(currentSkyHex, skyColor, 0.05);
-      targetGround = lerpColor(
-        this.groundRect.fillColor,
-        groundColor,
-        0.05
-      );
-      // On first transition from phase 1, seed with previous color
       if (currentSkyHex === PHASE_COLORS.sky[0] && phaseIdx > 0) {
         targetSky = lerpColor(prevSky, skyColor, 0.05);
-        targetGround = lerpColor(prevGround, groundColor, 0.05);
       }
     }
 
     this.cameras.main.setBackgroundColor(targetSky);
-    this.groundRect.setFillStyle(targetGround);
+    // Tint the background and ground tiles to match phase
+    this.bgFar.setTint(targetSky);
+    this.groundTile.setTint(PHASE_COLORS.ground[phaseIdx]);
 
     // Speed lines
     this.speedLines.update(speed);

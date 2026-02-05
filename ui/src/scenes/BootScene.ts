@@ -15,6 +15,30 @@ export class BootScene extends Phaser.Scene {
     super({ key: 'BootScene' });
   }
 
+  preload() {
+    // Player sprites
+    this.load.image('player_run1', '/assets/theme_mario/player_run1.png');
+    this.load.image('player_run2', '/assets/theme_mario/player_run2.png');
+    this.load.image('player_jump', '/assets/theme_mario/player_jump.png');
+
+    // Ground obstacles (static)
+    this.load.image('ground_small', '/assets/theme_mario/ground_small.png');
+    this.load.image('ground_tall', '/assets/theme_mario/ground_tall.png');
+    this.load.image('ground_wide', '/assets/theme_mario/ground_wide.png');
+
+    // Air obstacles (2-frame animated)
+    this.load.image('air_high_f1', '/assets/theme_mario/air_high_f1.png');
+    this.load.image('air_high_f2', '/assets/theme_mario/air_high_f2.png');
+    this.load.image('air_low_f1', '/assets/theme_mario/air_low_f1.png');
+    this.load.image('air_low_f2', '/assets/theme_mario/air_low_f2.png');
+    this.load.image('air_moving_f1', '/assets/theme_mario/air_moving_f1.png');
+    this.load.image('air_moving_f2', '/assets/theme_mario/air_moving_f2.png');
+
+    // Background & ground
+    this.load.image('bg_far', '/assets/theme_mario/bg_far.png');
+    this.load.image('ground_tile', '/assets/theme_mario/ground_tile.png');
+  }
+
   init() {
     this.gameSession = GameSession.getInstance();
 
@@ -33,6 +57,34 @@ export class BootScene extends Phaser.Scene {
   }
 
   async create() {
+    // Create animations (global, persist across scenes)
+    if (!this.anims.exists('player_run')) {
+      this.anims.create({
+        key: 'player_run',
+        frames: [{ key: 'player_run1' }, { key: 'player_run2' }],
+        frameRate: 8,
+        repeat: -1,
+      });
+      this.anims.create({
+        key: 'air_high_anim',
+        frames: [{ key: 'air_high_f1' }, { key: 'air_high_f2' }],
+        frameRate: 4,
+        repeat: -1,
+      });
+      this.anims.create({
+        key: 'air_low_anim',
+        frames: [{ key: 'air_low_f1' }, { key: 'air_low_f2' }],
+        frameRate: 4,
+        repeat: -1,
+      });
+      this.anims.create({
+        key: 'air_moving_anim',
+        frames: [{ key: 'air_moving_f1' }, { key: 'air_moving_f2' }],
+        frameRate: 4,
+        repeat: -1,
+      });
+    }
+
     const loadingText = this.add.text(
       this.cameras.main.centerX,
       this.cameras.main.centerY,

@@ -1,12 +1,14 @@
 import Phaser from 'phaser';
 import type { Vector2D } from '../types';
 
-export class PlayerSprite extends Phaser.GameObjects.Rectangle {
-  private playerId: string;
+export class PlayerSprite {
+  private sprite: Phaser.GameObjects.Sprite;
   private playerLabel: Phaser.GameObjects.Text;
+  private playerId: string;
   private spriteWidth: number;
   private spriteHeight: number;
   private eliminated = false;
+  private currentAnim = '';
 
   constructor(
     scene: Phaser.Scene,
@@ -17,19 +19,27 @@ export class PlayerSprite extends Phaser.GameObjects.Rectangle {
     height: number,
     isLocalPlayer: boolean = false
   ) {
-    super(scene, x, y, width, height, isLocalPlayer ? 0x00ff00 : 0xff6600);
-
     this.playerId = playerId;
     this.spriteWidth = width;
     this.spriteHeight = height;
 
-    // Add to scene
-    scene.add.existing(this);
+    // Create sprite with run1 as initial texture
+    this.sprite = scene.add.sprite(x, y, 'player_run1');
+    this.sprite.setOrigin(0, 1);
+    this.sprite.setDisplaySize(width, height);
+    this.sprite.setDepth(20);
 
-    // Set origin to bottom-left to match server hitbox (x = left edge, y = bottom edge)
-    this.setOrigin(0, 1);
+    // Tint non-local players to distinguish them
+    if (!isLocalPlayer) {
+      this.sprite.setTint(0xff6600);
+      this.sprite.setAlpha(0.8);
+    }
 
-    // Add label above player (centered on sprite width)
+    // Start run animation
+    this.sprite.play('player_run');
+    this.currentAnim = 'player_run';
+
+    // Add label above player
     const labelText = isLocalPlayer ? 'YOU' : playerId.substring(0, 8);
     this.playerLabel = scene.add.text(x + width / 2, y - height + 10, labelText, {
       fontSize: '12px',
@@ -38,31 +48,41 @@ export class PlayerSprite extends Phaser.GameObjects.Rectangle {
       padding: { x: 4, y: 2 },
     });
     this.playerLabel.setOrigin(0.5);
+    this.playerLabel.setDepth(25);
   }
 
   public updatePosition(position: Vector2D, velocity: Vector2D): void {
-    this.x = position.x;
-    this.y = position.y;
+    this.sprite.x = position.x;
+    this.sprite.y = position.y;
 
-    // Update label position using stored dimensions
-    this.playerLabel.x = this.x + this.spriteWidth / 2;
-    this.playerLabel.y = this.y - this.spriteHeight + 10;
+    // Update animation state (skip if eliminated)
+    if (!this.eliminated) {
+      const isAirborne = Math.abs(velocity.y) > 0.5;
 
-    // Simple animation: tilt based on velocity
-    if (velocity.y > 0) {
-      this.setRotation(0.1); // Jumping up
-    } else if (velocity.y < 0) {
-      this.setRotation(-0.1); // Falling down
-    } else {
-      this.setRotation(0);
+      if (isAirborne && this.currentAnim !== 'jump') {
+        this.sprite.stop();
+        this.sprite.setTexture('player_jump');
+        this.sprite.setDisplaySize(this.spriteWidth, this.spriteHeight);
+        this.currentAnim = 'jump';
+      } else if (!isAirborne && this.currentAnim !== 'player_run') {
+        this.sprite.play('player_run');
+        this.sprite.setDisplaySize(this.spriteWidth, this.spriteHeight);
+        this.currentAnim = 'player_run';
+      }
     }
+
+    // Update label position
+    this.playerLabel.x = this.sprite.x + this.spriteWidth / 2;
+    this.playerLabel.y = this.sprite.y - this.spriteHeight + 10;
   }
 
   public eliminate(): void {
     this.eliminated = true;
-    // Visual feedback for elimination
-    this.setFillStyle(0xff0000);
-    this.setAlpha(0.5);
+    this.sprite.setTint(0xff0000);
+    this.sprite.setAlpha(0.5);
+    this.sprite.stop();
+    this.sprite.setTexture('player_run1');
+    this.sprite.setDisplaySize(this.spriteWidth, this.spriteHeight);
   }
 
   public wasEliminated(): boolean {
@@ -75,6 +95,6 @@ export class PlayerSprite extends Phaser.GameObjects.Rectangle {
 
   public destroy(): void {
     this.playerLabel.destroy();
-    super.destroy();
+    this.sprite.destroy();
   }
 }
