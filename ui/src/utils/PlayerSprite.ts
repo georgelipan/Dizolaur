@@ -6,6 +6,7 @@ export class PlayerSprite extends Phaser.GameObjects.Rectangle {
   private playerLabel: Phaser.GameObjects.Text;
   private spriteWidth: number;
   private spriteHeight: number;
+  private eliminated = false;
 
   constructor(
     scene: Phaser.Scene,
@@ -58,9 +59,14 @@ export class PlayerSprite extends Phaser.GameObjects.Rectangle {
   }
 
   public eliminate(): void {
+    this.eliminated = true;
     // Visual feedback for elimination
     this.setFillStyle(0xff0000);
     this.setAlpha(0.5);
+  }
+
+  public wasEliminated(): boolean {
+    return this.eliminated;
   }
 
   public getPlayerId(): string {

@@ -38,8 +38,8 @@ Sunete pentru fiecare actiune si eveniment, plus muzica de fundal cu tempo care 
 - F06 (Near-Miss) — sunetele de near-miss
 
 ## Validare
-- [ ] Fiecare actiune are sunet
-- [ ] Tempo muzica creste cu fazele
-- [ ] Mute toggle functioneaza
-- [ ] Sunetele nu se suprapun haotic (prioritizare)
-- [ ] Performanta OK pe mobile
+- [x] Fiecare actiune are sunet
+- [x] Tempo muzica creste cu fazele
+- [x] Mute toggle functioneaza
+- [x] Sunetele nu se suprapun haotic (prioritizare)
+- [x] Performanta OK pe mobile
