@@ -10,6 +10,7 @@ import { showNearMissEffect } from '../utils/NearMissEffect';
 import { SpeedLines } from '../effects/SpeedLines';
 import { ScreenShake } from '../effects/ScreenShake';
 import { ParticleManager } from '../effects/ParticleManager';
+import { AudioManager } from '../services/AudioManager';
 
 const DUCK_THROTTLE_MS = 100;
 const MAX_PLAYERS = 10;
@@ -64,6 +65,12 @@ export class GameScene extends Phaser.Scene {
   private wasAirborne = false;
   private wasEliminated = false;
 
+  // Audio (F08)
+  private audioManager!: AudioManager;
+  private muteBtn!: Phaser.GameObjects.Text;
+  private wasDucking = false;
+  private passedObstacles: Set<string> = new Set();
+
   constructor() {
     super({ key: 'GameScene' });
   }
@@ -90,6 +97,8 @@ export class GameScene extends Phaser.Scene {
     this.currentPhase = 1;
     this.wasAirborne = false;
     this.wasEliminated = false;
+    this.wasDucking = false;
+    this.passedObstacles.clear();
     this.players.clear();
     this.obstacles.clear();
 
@@ -146,6 +155,25 @@ export class GameScene extends Phaser.Scene {
     this.screenShake = new ScreenShake(this.cameras.main);
     this.particleManager = new ParticleManager(this);
 
+    // Initialize audio (F08)
+    this.audioManager = new AudioManager();
+    this.audioManager.resume();
+    this.audioManager.startMusic();
+
+    // Mute toggle button (top-right)
+    this.muteBtn = this.add.text(
+      this.config.worldWidth - 16, 16,
+      this.audioManager.isMuted ? '[MUTED]' : '[SOUND]',
+      { fontSize: '18px', color: '#000000', backgroundColor: '#ffffff', padding: { x: 8, y: 4 } }
+    );
+    this.muteBtn.setOrigin(1, 0);
+    this.muteBtn.setDepth(50);
+    this.muteBtn.setInteractive({ useHandCursor: true });
+    this.muteBtn.on('pointerdown', () => {
+      const muted = this.audioManager.toggleMute();
+      this.muteBtn.setText(muted ? '[MUTED]' : '[SOUND]');
+    });
+
     // Network event listeners (stored for cleanup)
     this.onGameUpdate = (snapshot: GameSnapshot) => {
       this.handleGameUpdate(snapshot);
@@ -178,15 +206,24 @@ export class GameScene extends Phaser.Scene {
         this.lastDuckTime = now;
         this.handleDuckInput();
       }
+    } else {
+      this.wasDucking = false;
     }
   }
 
   private handleJumpInput(): void {
+    this.audioManager.resume();
+    this.audioManager.playJump();
     const input = this.inputBuffer.addInput('jump');
     this.networkService.sendInput(input);
   }
 
   private handleDuckInput(): void {
+    if (!this.wasDucking) {
+      this.audioManager.resume();
+      this.audioManager.playDuck();
+    }
+    this.wasDucking = true;
     const input = this.inputBuffer.addInput('duck');
     this.networkService.sendInput(input);
   }
@@ -263,6 +300,8 @@ export class GameScene extends Phaser.Scene {
             playerData.position.x + this.config.playerWidth / 2,
             screenY
           );
+          this.audioManager.playOwnElimination();
+          this.audioManager.stopMusic();
         }
 
         // Score update
@@ -285,12 +324,18 @@ export class GameScene extends Phaser.Scene {
             // Screen shake for pixel perfect only
             if (nm.level === 'pixel_perfect') {
               this.screenShake.onPixelPerfect();
+              this.audioManager.playNearMissPixelPerfect();
+            } else {
+              this.audioManager.playNearMissClose();
             }
           }
         }
       }
 
       if (playerData.state === PlayerState.ELIMINATED) {
+        if (!isLocalPlayer && !playerSprite.wasEliminated()) {
+          this.audioManager.playOtherEliminated();
+        }
         playerSprite.eliminate();
       }
     }
@@ -307,7 +352,10 @@ export class GameScene extends Phaser.Scene {
       }
     }
 
-    // Update obstacles
+    // Update obstacles and detect cleared obstacles
+    const myPlayer = myPlayerId ? players.find(p => p.playerId === myPlayerId) : null;
+    const playerX = myPlayer ? myPlayer.position.x : 0;
+
     for (const obstacleData of obstaclesData) {
       if (!obstacleData.id || !obstacleData.position) continue;
 
@@ -327,6 +375,14 @@ export class GameScene extends Phaser.Scene {
       const obstacleSprite = this.obstacles.get(obstacleData.id)!;
       const screenY = this.groundYScreen - obstacleData.position.y;
       obstacleSprite.updatePosition({ x: obstacleData.position.x, y: screenY });
+
+      // Obstacle cleared: right edge passed player left edge, not eliminated
+      if (myPlayer && !this.wasEliminated &&
+          obstacleData.position.x + obstacleData.width < playerX &&
+          !this.passedObstacles.has(obstacleData.id)) {
+        this.passedObstacles.add(obstacleData.id);
+        this.audioManager.playObstacleCleared();
+      }
     }
 
     // Remove off-screen obstacles using Set
@@ -338,6 +394,7 @@ export class GameScene extends Phaser.Scene {
       if (!this.activeIdSet.has(obstacleId)) {
         sprite.destroy();
         this.obstacles.delete(obstacleId);
+        this.passedObstacles.delete(obstacleId);
       }
     }
   }
@@ -349,6 +406,9 @@ export class GameScene extends Phaser.Scene {
     if (phase !== this.currentPhase) {
       this.currentPhase = phase;
     }
+
+    // Update music tempo (F08)
+    this.audioManager.updateTempo(phase);
 
     // Smooth lerp toward target color
     const skyColor = PHASE_COLORS.sky[phaseIdx];
@@ -398,6 +458,9 @@ export class GameScene extends Phaser.Scene {
     // Clean up network listeners
     this.networkService.off('game_update', this.onGameUpdate);
     this.networkService.off('match_ended', this.onMatchEnded);
+
+    // Clean up audio
+    this.audioManager.destroy();
 
     // Clean up visual effects
     this.speedLines.destroy();

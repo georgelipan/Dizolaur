@@ -1,10 +1,12 @@
 import Phaser from 'phaser';
 import type { GameSession } from '../services/GameSession';
 import type { MatchResult } from '../types';
+import { AudioManager } from '../services/AudioManager';
 
 export class ResultsScene extends Phaser.Scene {
   private gameSession!: GameSession;
   private result!: MatchResult;
+  private audioManager!: AudioManager;
 
   constructor() {
     super({ key: 'ResultsScene' });
@@ -43,6 +45,15 @@ export class ResultsScene extends Phaser.Scene {
     const myPlayerId = this.gameSession.getPlayerId();
     const myResult = this.result.players.find((p) => p.playerId === myPlayerId);
     const isWinner = myResult?.playerId === this.result.winnerId;
+
+    // Victory/defeat sound (F08)
+    this.audioManager = new AudioManager();
+    this.audioManager.resume();
+    if (isWinner) {
+      this.audioManager.playVictory();
+    } else {
+      this.audioManager.playDefeat();
+    }
 
     // Winner announcement
     if (isWinner) {
