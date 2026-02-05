@@ -16,6 +16,7 @@ import { AliveCounter } from '../ui/AliveCounter';
 import { EliminationBanner } from '../ui/EliminationBanner';
 import { VictorySequence } from '../sequences/VictorySequence';
 import { DefeatSequence } from '../sequences/DefeatSequence';
+import { TouchInputHandler } from '../services/TouchInputHandler';
 
 const DUCK_THROTTLE_MS = 100;
 const MAX_PLAYERS = 10;
@@ -97,6 +98,9 @@ export class GameScene extends Phaser.Scene {
   private gameFrozen = false;
   private deathReplayFrameCounter = 0;
 
+  // Touch controls (F13)
+  private touchHandler: TouchInputHandler | null = null;
+
   constructor() {
     super({ key: 'GameScene' });
   }
@@ -154,11 +158,19 @@ export class GameScene extends Phaser.Scene {
     );
     this.groundRect.setOrigin(0.5);
 
-    // Setup input
+    // Setup keyboard input
     if (this.input.keyboard) {
       this.cursors = this.input.keyboard.createCursorKeys();
       this.spaceKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE);
     }
+
+    // Setup touch input (F13)
+    this.touchHandler = new TouchInputHandler(this, {
+      onJump: () => this.handleJumpInput(),
+      onDuckStart: () => this.handleDuckInput(),
+      onDuckHold: () => this.handleDuckInput(),
+      onDuckEnd: () => { this.wasDucking = false; },
+    });
 
     // UI - Score
     this.scoreText = this.add.text(16, 16, 'Score: 0', {
@@ -179,15 +191,37 @@ export class GameScene extends Phaser.Scene {
     });
     matchText.setDepth(50);
 
-    // Instructions
-    const instrText = this.add.text(this.config.worldWidth / 2, 16, 'Press SPACE or UP to Jump, DOWN to Duck', {
-      fontSize: '18px',
-      color: '#000000',
-      backgroundColor: '#ffffff',
-      padding: { x: 8, y: 4 },
-    });
-    instrText.setOrigin(0.5, 0);
-    instrText.setDepth(50);
+    // Instructions — show touch hint on mobile, keyboard on desktop
+    const isTouchDevice = this.sys.game.device.input.touch;
+    const instrLabel = isTouchDevice
+      ? 'TAP = JUMP  |  SWIPE DOWN = DUCK'
+      : 'SPACE / UP = Jump  |  DOWN = Duck';
+
+    // F13: Hide touch hint after 3 games (localStorage counter)
+    const HINT_KEY = 'dizolaur_hint_count';
+    let hintCount = 0;
+    try { hintCount = parseInt(localStorage.getItem(HINT_KEY) || '0', 10) || 0; } catch { /* noop */ }
+
+    if (hintCount < 3) {
+      try { localStorage.setItem(HINT_KEY, String(hintCount + 1)); } catch { /* noop */ }
+      const instrText = this.add.text(this.config.worldWidth / 2, 16, instrLabel, {
+        fontSize: '18px',
+        color: '#000000',
+        backgroundColor: '#ffffff',
+        padding: { x: 8, y: 4 },
+      });
+      instrText.setOrigin(0.5, 0);
+      instrText.setDepth(50);
+
+      // Fade out after 4 seconds
+      this.tweens.add({
+        targets: instrText,
+        alpha: 0,
+        duration: 500,
+        delay: 4000,
+        onComplete: () => instrText.destroy(),
+      });
+    }
 
     // Initialize visual effects
     this.speedLines = new SpeedLines(this, this.config.worldWidth, this.config.worldHeight);
@@ -549,6 +583,7 @@ export class GameScene extends Phaser.Scene {
    */
   private enterSpectatorMode(): void {
     this.isSpectating = true;
+    this.touchHandler?.setEnabled(false);
     this.deathReplayActive = true;
     this.deathReplayFrameCounter = 0;
 
@@ -666,6 +701,10 @@ export class GameScene extends Phaser.Scene {
     // Clean up elimination UI (F11)
     this.aliveCounter.destroy();
     this.eliminationBanner.destroy();
+
+    // Clean up touch controls (F13)
+    this.touchHandler?.destroy();
+    this.touchHandler = null;
 
     // Clean up victory/defeat sequences (F12)
     this.victorySequence?.destroy();
