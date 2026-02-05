@@ -1,5 +1,7 @@
 # F10 — Spectator Mode
 
+> **Nota:** Acest feature nu poate fi testat complet decat dupa implementarea partii de multiplayer (mai multi jucatori in acelasi meci). In single-player, se poate verifica doar death replay-ul si tranzitia la spectator view.
+
 ## Descriere
 Dupa eliminare, jucatorul vede in continuare meciul live. Urmareste ceilalti jucatori.
 
@@ -33,7 +35,7 @@ Creeaza tensiune, social engagement, si motivatie ("urmatorul meci fac mai bine"
 Niciuna
 
 ## Validare
-- [ ] Dupa eliminare, vad ceilalti jucatori live
-- [ ] Scorurile se actualizeaza in timp real
-- [ ] Butonul Play Again functioneaza
-- [ ] Death replay se afiseaza 1.5s
+- [x] Dupa eliminare, vad ceilalti jucatori live
+- [x] Scorurile se actualizeaza in timp real
+- [x] Butonul Play Again functioneaza
+- [x] Death replay se afiseaza 1.5s
