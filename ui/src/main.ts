@@ -18,15 +18,6 @@ const config: Phaser.Types.Core.GameConfig = {
   },
 };
 
-// Constrain container to game aspect ratio at phone-like size
-const container = document.getElementById('game-container');
-if (container) {
-  const w = config.width as number;
-  const h = config.height as number;
-  container.style.maxWidth = `${w}px`;
-  container.style.maxHeight = `${h}px`;
-}
-
 // Create game instance
 const game = new Phaser.Game(config);
 

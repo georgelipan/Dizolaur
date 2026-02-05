@@ -150,11 +150,12 @@ export class GameScene extends Phaser.Scene {
     // Setup camera
     this.cameras.main.setBackgroundColor('#87CEEB');
 
-    // Draw ground using config dimensions
+    // Draw ground — extra wide to cover screens wider than 16:9 (F15)
+    const groundPad = 200;
     this.groundRect = this.add.rectangle(
       this.config.worldWidth / 2,
       this.groundYScreen + 25,
-      this.config.worldWidth,
+      this.config.worldWidth + groundPad * 2,
       50,
       0x8B4513
     );
@@ -236,9 +237,12 @@ export class GameScene extends Phaser.Scene {
     this.audioManager.startMusic();
     this.haptic = new HapticService();
 
+    // Right-side UI anchor (F15: 8px from edge for notch safety)
+    const rightEdge = this.config.worldWidth - 8;
+
     // Mute toggle button (top-right)
     this.muteBtn = this.add.text(
-      this.config.worldWidth - 16, 16,
+      rightEdge, 8,
       this.audioManager.isMuted ? '[MUTED]' : '[SOUND]',
       { fontSize: '18px', color: '#000000', backgroundColor: '#ffffff', padding: { x: 8, y: 4 } }
     );
@@ -250,10 +254,34 @@ export class GameScene extends Phaser.Scene {
       this.muteBtn.setText(muted ? '[MUTED]' : '[SOUND]');
     });
 
-    // Alive counter & elimination banner (F11)
+    // Fullscreen button — mobile only, left of mute button (F15)
+    if (this.sys.game.device.input.touch && document.fullscreenEnabled) {
+      const fsBtnX = this.muteBtn.x - this.muteBtn.width - 8;
+      const fsBtn = this.add.text(
+        fsBtnX, 8,
+        '[FULL]',
+        { fontSize: '18px', color: '#000000', backgroundColor: '#ffffff', padding: { x: 8, y: 4 } }
+      );
+      fsBtn.setOrigin(1, 0);
+      fsBtn.setDepth(50);
+      fsBtn.setInteractive({ useHandCursor: true });
+      fsBtn.on('pointerdown', () => {
+        if (this.scale.isFullscreen) {
+          this.scale.stopFullscreen();
+        } else {
+          this.scale.startFullscreen();
+        }
+      });
+      this.scale.on('fullscreenchange', () => {
+        fsBtn.setText(this.scale.isFullscreen ? '[EXIT]' : '[FULL]');
+      });
+    }
+
+    // Alive counter — right-aligned under mute button (F11)
+    const aliveY = this.muteBtn.y + this.muteBtn.height + 4;
     this.aliveCounter = new AliveCounter(
       this,
-      this.config.worldWidth - 80, 52,
+      rightEdge - 65, aliveY,
       this.config.maxPlayers,
     );
     this.eliminationBanner = new EliminationBanner(this, this.config.worldWidth);

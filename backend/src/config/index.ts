@@ -66,7 +66,7 @@ export const defaultServerConfig: ServerConfig = {
     airMovingHeight: parseInt(process.env[AIR_MOVING_HEIGHT] ?? '40', 10),
 
     // Spawn positions
-    obstacleSpawnX: parseInt(process.env[OBSTACLE_SPAWN_X] ?? '960', 10),
+    obstacleSpawnX: parseInt(process.env[OBSTACLE_SPAWN_X] ?? '1060', 10),
     airHighSpawnY: parseInt(process.env[AIR_HIGH_SPAWN_Y] ?? '95', 10),
     airLowSpawnY: parseInt(process.env[AIR_LOW_SPAWN_Y] ?? '32', 10),
     airMovingBaseY: parseInt(process.env[AIR_MOVING_BASE_Y] ?? '70', 10),
