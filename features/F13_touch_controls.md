@@ -36,8 +36,8 @@ Tap to jump, swipe down to duck. Playabil cu un singur deget.
 Niciuna
 
 ## Validare
-- [ ] Tap = jump pe mobil
-- [ ] Swipe down = duck pe mobil
-- [ ] Nu interfereaza cu keyboard controls pe desktop
-- [ ] Dead zone previne double-tap
-- [ ] Functioneaza cu un singur deget
+- [x] Tap = jump pe mobil
+- [x] Swipe down = duck pe mobil
+- [x] Nu interfereaza cu keyboard controls pe desktop
+- [x] Dead zone previne double-tap
+- [x] Functioneaza cu un singur deget
