@@ -21,7 +21,16 @@ export class NetworkService {
   private eventHandlers: Map<string, EventCallback<unknown>[]> = new Map();
 
   constructor(serverUrl?: string) {
-    this.serverUrl = serverUrl || import.meta.env.VITE_SERVER_URL || 'http://localhost:3000';
+    this.serverUrl = serverUrl || import.meta.env.VITE_SERVER_URL || this.getDefaultServerUrl();
+  }
+
+  private getDefaultServerUrl(): string {
+    // If accessing from non-localhost, use the same host for backend
+    const { hostname, protocol } = window.location;
+    if (hostname !== 'localhost' && hostname !== '127.0.0.1') {
+      return `${protocol}//${hostname}:3000`;
+    }
+    return 'http://localhost:3000';
   }
 
   public connect(token: string): Promise<void> {
