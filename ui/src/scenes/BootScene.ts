@@ -1,13 +1,21 @@
+/**
+ * BootScene - Vegas Casino Neon Style
+ * Displays DIZOLAUR title and "PLAY FOR REAL. WIN FOR REAL." in neon style
+ * Handles server connection and authentication
+ */
+
 import Phaser from 'phaser';
 import { NetworkService } from '../services/NetworkService';
 import { GameSession } from '../services/GameSession';
 import type { AuthenticatedData } from '../types';
+import { BootOverlay } from '../ui/BootOverlay';
 
 const AUTH_TIMEOUT_MS = 10000;
 
 export class BootScene extends Phaser.Scene {
   private networkService!: NetworkService;
   private gameSession!: GameSession;
+  private overlay!: BootOverlay;
   private onAuthenticated!: (data: AuthenticatedData) => void;
   private onAuthError!: (data: { message: string }) => void;
 
@@ -95,6 +103,13 @@ export class BootScene extends Phaser.Scene {
       }
     );
     loadingText.setOrigin(0.5);
+    // Dark background
+    this.cameras.main.setBackgroundColor('#0a0015');
+
+    // Create and show overlay
+    this.overlay = new BootOverlay();
+    this.overlay.show();
+    this.overlay.setStatus('⏳ CONNECTING TO SERVER...');
 
     try {
       const token = this.gameSession.getToken();
@@ -102,12 +117,14 @@ export class BootScene extends Phaser.Scene {
       // Connect with token in auth handshake
       await this.networkService.connect(token);
 
+      this.overlay.setStatus('🔐 AUTHENTICATING...');
+
       // Authenticate
       this.networkService.authenticate(token);
 
       // Auth timeout
       const authTimeout = this.time.delayedCall(AUTH_TIMEOUT_MS, () => {
-        loadingText.setText('Authentication timed out. Please refresh.');
+        this.overlay.setStatus('⚠️ CONNECTION TIMED OUT', true);
         this.cleanupListeners();
       });
 
@@ -127,21 +144,29 @@ export class BootScene extends Phaser.Scene {
           this.gameSession.setCurrency(data.currency);
         }
 
-        this.cleanupListeners();
-        this.scene.start('WaitingScene');
+        this.overlay.setStatus('✅ CONNECTED! ENTERING ARENA...');
+
+        // Delay then transition (6 seconds to show the neon splash)
+        this.time.delayedCall(6000, () => {
+          this.cleanupListeners();
+          this.overlay.hide();
+          this.scene.start('WaitingScene');
+        });
       };
 
       this.onAuthError = (_data: { message: string }) => {
         authTimeout.destroy();
-        loadingText.setText('Authentication failed. Please try again.');
+        this.overlay.setStatus('❌ AUTHENTICATION FAILED', true);
         this.cleanupListeners();
       };
 
       this.networkService.on('authenticated', this.onAuthenticated);
       this.networkService.on('auth_error', this.onAuthError);
     } catch {
-      loadingText.setText('Failed to connect to server');
+      this.overlay.setStatus('❌ CONNECTION FAILED', true);
     }
+
+    this.events.once('shutdown', this.shutdown, this);
   }
 
   private cleanupListeners(): void {
@@ -155,5 +180,8 @@ export class BootScene extends Phaser.Scene {
 
   shutdown() {
     this.cleanupListeners();
+    if (this.overlay) {
+      this.overlay.destroy();
+    }
   }
 }

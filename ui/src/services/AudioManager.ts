@@ -9,8 +9,16 @@ const STORAGE_KEY = 'dizolaur_muted';
 // BPM per phase (interpolated gradually between phases)
 const PHASE_BPM: readonly number[] = [120, 130, 145, 160, 175];
 
+// Duration for jackpot sounds in ms
+const JACKPOT_SOUND_DURATION = 3500;
+
 // Pentatonic scale frequencies for musical sounds
 const PENTATONIC = [523.25, 587.33, 659.25, 783.99, 880.0]; // C5 D5 E5 G5 A5
+
+// Preloaded audio elements for mobile compatibility
+let preloadedCoins: HTMLAudioElement | null = null;
+let preloadedJackpot: HTMLAudioElement | null = null;
+let audioUnlocked = false;
 
 export class AudioManager {
   private ctx: AudioContext | null = null;
@@ -63,6 +71,44 @@ export class AudioManager {
     const ctx = this.ensureContext();
     if (ctx?.state === 'suspended') {
       ctx.resume();
+    }
+  }
+
+  /**
+   * Preload and unlock audio for mobile - call this on user interaction (e.g. Ready button)
+   * This is required for mobile browsers due to autoplay policies
+   */
+  preloadJackpotSounds(): void {
+    if (audioUnlocked) return;
+
+    try {
+      // Create and preload audio elements
+      preloadedCoins = new Audio('/sounds/coins_falling.mp3');
+      preloadedCoins.preload = 'auto';
+      preloadedCoins.volume = 0.6;
+
+      preloadedJackpot = new Audio('/sounds/jackpot.mp3');
+      preloadedJackpot.preload = 'auto';
+      preloadedJackpot.volume = 0.7;
+
+      // Play silently to unlock audio on mobile (required for autoplay policy)
+      const unlockAudio = (audio: HTMLAudioElement) => {
+        audio.volume = 0;
+        audio.play().then(() => {
+          audio.pause();
+          audio.currentTime = 0;
+          audio.volume = audio === preloadedCoins ? 0.6 : 0.7;
+        }).catch(() => {
+          // Ignore errors
+        });
+      };
+
+      unlockAudio(preloadedCoins);
+      unlockAudio(preloadedJackpot);
+
+      audioUnlocked = true;
+    } catch {
+      // Audio preload failed
     }
   }
 
@@ -311,47 +357,51 @@ export class AudioManager {
     osc.stop(now + 0.8);
   }
 
-  /** Victory: fanfare + cheer-like noise */
+  /** Victory: fanfare + cheer-like noise (legacy synthesized version) */
   playVictory(): void {
-    const ctx = this.ensureContext();
-    if (!ctx || !this.sfxGain) return;
+    // Now uses playJackpotWin instead for MP3 sounds
+  }
 
-    const now = ctx.currentTime;
+  /**
+   * Play jackpot win sounds (coins + jingle) simultaneously using HTML5 Audio
+   * Uses preloaded audio if available (call preloadJackpotSounds on user interaction first)
+   * Returns the duration in ms for animation sync
+   */
+  playJackpotWin(): number {
+    if (this.muted) return JACKPOT_SOUND_DURATION;
 
-    // Fanfare — ascending major chord arpeggiated
-    const fanfare = [523.25, 659.25, 783.99, 1046.5]; // C5 E5 G5 C6
-    fanfare.forEach((freq, i) => {
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-      const t = now + i * 0.2;
-      osc.type = 'square';
-      osc.frequency.value = freq;
-      gain.gain.setValueAtTime(0.2, t);
-      gain.gain.setValueAtTime(0.2, t + 0.3);
-      gain.gain.exponentialRampToValueAtTime(0.01, t + 0.8);
-      osc.connect(gain);
-      gain.connect(this.sfxGain!);
-      osc.start(t);
-      osc.stop(t + 0.8);
-    });
+    // Try to use preloaded audio first (more reliable on mobile)
+    if (preloadedCoins && preloadedJackpot && audioUnlocked) {
+      try {
+        preloadedCoins.currentTime = 0;
+        preloadedCoins.volume = 0.6;
+        preloadedCoins.play().catch(() => {});
 
-    // Sustained chord at the end
-    const chordStart = now + 0.8;
-    [523.25, 659.25, 783.99].forEach((freq) => {
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-      osc.type = 'sine';
-      osc.frequency.value = freq;
-      gain.gain.setValueAtTime(0.15, chordStart);
-      gain.gain.exponentialRampToValueAtTime(0.01, chordStart + 1.2);
-      osc.connect(gain);
-      gain.connect(this.sfxGain!);
-      osc.start(chordStart);
-      osc.stop(chordStart + 1.2);
-    });
+        preloadedJackpot.currentTime = 0;
+        preloadedJackpot.volume = 0.7;
+        preloadedJackpot.play().catch(() => {});
 
-    // Crowd cheer (filtered noise)
-    this.playNoiseBurst(now + 0.3, 1.5, 3000, 0.12);
+        return JACKPOT_SOUND_DURATION;
+      } catch {
+        // Fall through to create new audio
+      }
+    }
+
+    // Fallback: create new audio elements
+    const playSound = (url: string, volume: number) => {
+      try {
+        const audio = new Audio(url);
+        audio.volume = volume;
+        audio.play().catch(() => {});
+      } catch {
+        // Audio creation failed
+      }
+    };
+
+    playSound('/sounds/coins_falling.mp3', 0.6);
+    playSound('/sounds/jackpot.mp3', 0.7);
+
+    return JACKPOT_SOUND_DURATION;
   }
 
   /** Defeat sound: low rumble + sad descending tone */
